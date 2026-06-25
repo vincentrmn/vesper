@@ -108,9 +108,9 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
 
   if (!est) {
     return (
-      <div className="card" style={{ marginBottom: 16 }}>
-        <p className="muted" style={{ margin: 0, fontStyle: "italic" }}>Analyse en cours…</p>
-      </div>
+      <div className="ds-card" style={{ marginBottom: 16 }}><div className="ds-card__body">
+        <p className="ds-muted" style={{ margin: 0, fontStyle: "italic" }}>Analyse en cours…</p>
+      </div></div>
     );
   }
 
@@ -119,13 +119,13 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
       <h2 style={{ margin: 0, fontSize: "1.1rem" }}>
         Analyse {est.commune ? <span className="muted" style={{ fontWeight: 400 }}>— {est.commune}</span> : null}
       </h2>
-      <div className="row" style={{ alignItems: "center", gap: 10 }}>
+      <div className="ds-row__actions" style={{ alignItems: "center", gap: 10 }}>
         {est.enough && (
-          <span className="conf-chip" style={{ background: "var(--paper-2)", color: confColor(est.confLabel), border: `1px solid ${confColor(est.confLabel)}33` }}>
-            ● Confiance {est.confLabel} ({est.confidence}/100)
+          <span className="ds-pill" style={{ color: confColor(est.confLabel), borderColor: `${confColor(est.confLabel)}55` }}>
+            <span className="ds-dot" style={{ background: confColor(est.confLabel) }} /> Confiance {est.confLabel} ({est.confidence}/100)
           </span>
         )}
-        <button className="btn ghost" style={{ fontSize: "0.8rem", padding: "4px 10px" }} onClick={() => setShowDetail((v) => !v)}>
+        <button className="ds-btn ds-btn--ghost ds-btn--sm" onClick={() => setShowDetail((v) => !v)}>
           {showDetail ? "▾ Masquer le détail" : "▸ Voir le détail"}
         </button>
       </div>
@@ -390,27 +390,27 @@ export default function RunPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="wrap">
+    <div className="wrap ds-scope">
       <div className="topbar">
         <a className="brand-home" href="/" title="Accueil">VESPER</a>
         <h1 className="page-title">{run?.config_name || "Comparables"}</h1>
         <div className="topbar-nav">
-          <a className="btn ghost" href="/">← Retour</a>
+          <a className="ds-btn ds-btn--ghost" href="/">← Retour</a>
         </div>
       </div>
 
-      {!run && <p className="empty">Chargement…</p>}
+      {!run && <div className="ds-empty"><span className="ds-empty__hint">Chargement…</span></div>}
 
       {run?.status === "running" && (
-        <div className="card"><p style={{ margin: 0 }}>⏳ Scraping en cours… (rafraîchissement auto)</p></div>
+        <div className="ds-card"><div className="ds-card__body" style={{ padding: 14 }}>⏳ Scraping en cours… (rafraîchissement auto)</div></div>
       )}
       {run?.status === "error" && (
-        <div className="card"><p className="error" style={{ margin: 0 }}>Erreur : {run.error}</p></div>
+        <div className="ds-error">Erreur : {run.error}</div>
       )}
 
       {run?.status === "done" && (
         <>
-          <div className="card" style={{ marginBottom: 16, padding: 0, overflow: "hidden" }}>
+          <div className="ds-card" style={{ marginBottom: 16, padding: 0, overflow: "hidden" }}>
             <div className="exp-head">
               <div className="exp-opts">
                 <strong style={{ fontSize: "0.9rem" }}>Exporter</strong>
@@ -422,10 +422,10 @@ export default function RunPage({ params }: { params: { id: string } }) {
                 </label>
               </div>
               <div className="exp-actions">
-                <button className="btn ghost exp-btn" onClick={() => doExport("xlsx")} disabled={!!expBusy}>
+                <button className="ds-btn ds-btn--ghost exp-btn" onClick={() => doExport("xlsx")} disabled={!!expBusy}>
                   <ExcelIcon /> {expBusy === "xlsx" ? "Génération…" : "Excel"}
                 </button>
-                <button className="btn ghost exp-btn" onClick={() => doExport("pdf")} disabled={!!expBusy}>
+                <button className="ds-btn ds-btn--ghost exp-btn" onClick={() => doExport("pdf")} disabled={!!expBusy}>
                   <PdfIcon /> {expBusy === "pdf" ? "Génération…" : "PDF"}
                 </button>
               </div>
@@ -452,7 +452,7 @@ export default function RunPage({ params }: { params: { id: string } }) {
               { label: "données incomplètes (prix ou surface manquant)", n: incomplete },
             ].filter((e) => e.n > 0);
             return (
-              <div className="card" style={{ marginBottom: 16 }}>
+              <div className="ds-card" style={{ marginBottom: 16 }}><div className="ds-card__body">
                 <div style={{ fontSize: "0.9rem", lineHeight: 1.6 }}>
                   <strong>{run.count}</strong> comparable{plur(run.count)} unique{plur(run.count)} ={" "}
                   <strong>{athomeN}</strong> atHome + <strong>{immotopN}</strong> Immotop
@@ -467,31 +467,31 @@ export default function RunPage({ params }: { params: { id: string } }) {
                   </div>
                 )}
                 {stats?.capped && (
-                  <div className="error" style={{ marginTop: 8 }}>⚠️ Plafond de pages atteint (≈ 1000 biens). Affine tes filtres pour tout couvrir.</div>
+                  <div className="ds-error" style={{ marginTop: 8 }}>⚠️ Plafond de pages atteint (≈ 1000 biens). Affine tes filtres pour tout couvrir.</div>
                 )}
                 {exclusions.length > 0 && (
                   <details style={{ marginTop: 10 }}>
-                    <summary style={{ cursor: "pointer", fontSize: "0.82rem", color: "var(--ink-soft)" }}>
+                    <summary style={{ cursor: "pointer", fontSize: "0.82rem", color: "var(--ds-ink-soft)" }}>
                       atHome : pourquoi {exclusions.reduce((s, e) => s + e.n, 0)} annonce(s) écartée(s) au scraping ?
                     </summary>
-                    <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: "0.82rem", color: "var(--ink-soft)", lineHeight: 1.6 }}>
+                    <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: "0.82rem", color: "var(--ds-ink-soft)", lineHeight: 1.6 }}>
                       {exclusions.map((e) => (
                         <li key={e.label}><strong>{e.n}</strong> — {e.label}</li>
                       ))}
                     </ul>
                   </details>
                 )}
-              </div>
+              </div></div>
             );
           })()}
 
           <Analyse est={estimate} comps={included} excludedCount={excluded.size} />
 
-          <p className="muted" style={{ margin: "0 0 12px" }}>
+          <p className="ds-muted" style={{ margin: "0 0 12px", fontSize: "var(--ds-fs-sm)" }}>
             {run.count} comparable{plur(run.count)} · lancé le {new Date(run.started_at).toLocaleString("fr-FR")} · coche/décoche un bien pour l'inclure/exclure du calcul
           </p>
 
-          {run.count === 0 && <p className="empty">Aucun bien ne correspond aux critères.</p>}
+          {run.count === 0 && <div className="ds-empty"><span className="ds-empty__hint">Aucun bien ne correspond aux critères.</span></div>}
           {run.count > 0 && (
             <div className="card" style={{ padding: 0, overflowX: "auto" }}>
               <table className="prop-table">
@@ -542,22 +542,22 @@ export default function RunPage({ params }: { params: { id: string } }) {
                             {r.commune && <div className="muted" style={{ fontSize: "0.78rem" }}>{r.commune}</div>}
                             <div className="tag-row">
                               {r.source === "both" && r.altUrl ? (
-                                <a className="src-badge both" href={r.altUrl} target="_blank" rel="noreferrer" title="Présent sur les deux portails">atHome + Immotop ↗</a>
+                                <a className="ds-tag ds-tag--both" href={r.altUrl} target="_blank" rel="noreferrer" title="Présent sur les deux portails">atHome + Immotop ↗</a>
                               ) : r.source === "immotop" ? (
-                                <span className="src-badge immotop" title="Source : immotop.lu">Immotop</span>
+                                <span className="ds-tag ds-tag--immotop" title="Source : immotop.lu">Immotop</span>
                               ) : (
-                                <span className="src-badge" title="Source : atHome.lu">atHome</span>
+                                <span className="ds-tag ds-tag--athome" title="Source : atHome.lu">atHome</span>
                               )}
-                              {sold && <span className="tag sold" title="Vendu / sous compromis">Vendu</span>}
+                              {sold && <span className="ds-tag ds-tag--sold" title="Vendu / sous compromis">Vendu</span>}
                               <EtatBadge etat={r.etat} />
-                              {kws.some((k) => k.label === "Neuf") && <span className="tag neuf">Neuf</span>}
+                              {kws.some((k) => k.label === "Neuf") && <span className="ds-tag ds-tag--neuf">Neuf</span>}
                             </div>
                           </td>
                           <td className="num" data-label="Prix">
                             {eur(r.price)}
                             {r.priceDelta != null && (
-                              <span className={`delta-badge ${r.priceDelta < 0 ? "down" : "up"}`}>
-                                {r.priceDelta < 0 ? "↓" : "↑"} {eur(Math.abs(r.priceDelta))}
+                              <span className={`ds-delta ${r.priceDelta < 0 ? "ds-delta--down" : "ds-delta--up"}`} style={{ marginLeft: 6 }}>
+                                {eur(Math.abs(r.priceDelta))}
                               </span>
                             )}
                           </td>
@@ -608,7 +608,7 @@ export default function RunPage({ params }: { params: { id: string } }) {
                                 </p>
                               )}
                               <p style={{ margin: "10px 0 0" }}>
-                                <a className="btn ghost" href={r.url} target="_blank" rel="noreferrer">Voir l'annonce ↗</a>
+                                <a className="ds-btn ds-btn--ghost ds-btn--sm" href={r.url} target="_blank" rel="noreferrer">Voir l'annonce ↗</a>
                               </p>
                             </td>
                           </tr>
