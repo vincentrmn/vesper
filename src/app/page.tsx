@@ -22,7 +22,7 @@ function summarizeZones(criteria: any): string {
     const n = criteria.locCodes.length;
     return `${n} zone${n > 1 ? "s" : ""}`;
   }
-  return "—";
+  return "·";
 }
 
 function summarizeSources(criteria: any): string {
@@ -48,7 +48,7 @@ function neufLabel(cr: any): string {
 }
 
 const eur0 = (v: any) =>
-  typeof v === "number" ? Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " €" : "—";
+  typeof v === "number" ? Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " €" : "·";
 
 function prettyLoc(code: string): string {
   const s = code.replace(/^L\d+-/, "").replace(/-/g, " ");
@@ -56,7 +56,7 @@ function prettyLoc(code: string): string {
 }
 function listZones(cr: any): string {
   const lc = Array.isArray(cr?.locCodes) ? cr.locCodes : [];
-  if (!lc.length) return "—";
+  if (!lc.length) return "·";
   return lc.map(prettyLoc).join(", ");
 }
 
@@ -164,10 +164,10 @@ export default function Dashboard() {
                   <div className="ds-label" style={{ marginBottom: 6 }}>Critères de recherche</div>
                   <HypRow label="Type de bien" value={typeLabel(cr.propertyType)} />
                   <HypRow label="Zones" value={listZones(cr)} />
-                  <HypRow label="Surface" value={`${cr.surfaceMin ?? "—"} → ${cr.surfaceMax ?? "—"} m²`} />
-                  <HypRow label="Prix" value={`${cr.priceMin != null ? eur0(cr.priceMin) : "—"} → ${cr.priceMax != null ? eur0(cr.priceMax) : "—"}`} />
-                  <HypRow label="Chambres min" value={cr.bedroomsMin != null ? String(cr.bedroomsMin) : "—"} />
-                  <HypRow label="Année de construction" value={`${cr.buildYearMin ?? "—"} → ${cr.buildYearMax ?? "—"}`} />
+                  <HypRow label="Surface" value={`${cr.surfaceMin ?? "·"} → ${cr.surfaceMax ?? "·"} m²`} />
+                  <HypRow label="Prix" value={`${cr.priceMin != null ? eur0(cr.priceMin) : "·"} → ${cr.priceMax != null ? eur0(cr.priceMax) : "·"}`} />
+                  <HypRow label="Chambres min" value={cr.bedroomsMin != null ? String(cr.bedroomsMin) : "·"} />
+                  <HypRow label="Année de construction" value={`${cr.buildYearMin ?? "·"} → ${cr.buildYearMax ?? "·"}`} />
                   <HypRow label="CPE" value={summarizeCpe(cr)} />
                   <HypRow label="Construction" value={neufLabel(cr)} />
                   <HypRow label="Sources" value={summarizeSources(cr)} />
@@ -197,7 +197,7 @@ export default function Dashboard() {
         runs.map((r) => (
           <a className="ds-row" key={r.id} href={`/runs/${r.id}`}>
             <div className="ds-row__main">
-              <div className="ds-row__title">{r.config_name || "—"}</div>
+              <div className="ds-row__title">{r.config_name || "Sans nom"}</div>
               <div className="ds-row__sub">{new Date(r.started_at).toLocaleString("fr-FR")}</div>
             </div>
             <div className="ds-row__actions">

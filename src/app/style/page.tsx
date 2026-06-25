@@ -84,7 +84,7 @@ export default function StyleGuide() {
       <div className="ds-section"><span className="ds-h2">Carte & tableau</span><span className="ds-rule" /></div>
       <div className="ds-card ds-card--accent">
         <div className="ds-card__head">
-          <span className="ds-h2" style={{ fontSize: "var(--ds-fs-md)" }}>Comparables — Frisange</span>
+          <span className="ds-h2" style={{ fontSize: "var(--ds-fs-md)" }}>Comparables · Frisange</span>
           <span className="ds-pill"><span className="ds-dot" /> 111 biens</span>
         </div>
         <div className="ds-card__body" style={{ padding: 0 }}>
@@ -124,7 +124,7 @@ export default function StyleGuide() {
       </div>
       <div className="ds-card">
         <div className="ds-card__body">
-          <div className="ds-label" style={{ marginBottom: 4 }}>€/m² affichés — distribution (n=111)</div>
+          <div className="ds-label" style={{ marginBottom: 4 }}>€/m² affichés · distribution (n=111)</div>
           <div className="ds-dist">
             <div className="ds-dist__bar">
               <div className="ds-dist__iqr" style={{ left: "30%", right: "28%" }} />
@@ -153,7 +153,7 @@ export default function StyleGuide() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 16 }}>
         <div className="ds-empty">
           <span className="ds-empty__title">Pas assez de comparables</span>
-          <span className="ds-empty__hint">Moins de 5 biens homogènes sur cette commune. L'estimation serait indicative — élargis la surface ou le rayon.</span>
+          <span className="ds-empty__hint">Moins de 5 biens homogènes sur cette commune. L'estimation serait indicative : élargis la surface ou le rayon.</span>
           <button className="ds-btn ds-btn--ghost ds-btn--sm" style={{ marginTop: 4 }}>Élargir la recherche</button>
         </div>
         <div className="ds-card"><div className="ds-card__body" style={{ display: "grid", gap: 10 }}>

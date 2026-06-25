@@ -116,8 +116,8 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
 
   const header = (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-      <h2 style={{ margin: 0, fontSize: "1.1rem" }}>
-        Analyse {est.commune ? <span className="muted" style={{ fontWeight: 400 }}>— {est.commune}</span> : null}
+      <h2 className="ds-h2" style={{ margin: 0, fontSize: "var(--ds-fs-md)" }}>
+        Analyse {est.commune ? <span className="ds-muted" style={{ fontWeight: 400 }}>· {est.commune}</span> : null}
       </h2>
       <div className="ds-row__actions" style={{ alignItems: "center", gap: 10 }}>
         {est.enough && (
@@ -173,7 +173,7 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
 
       {/* Référence Observatoire (prix réellement signés chez le notaire). */}
       <div className="analyse-obs">
-        <span className="muted">Référence Observatoire de l'Habitat — prix de vente signés (notariés){est.commune ? `, ${est.commune}` : ""} : </span>
+        <span className="ds-muted">Référence Observatoire de l'Habitat · prix de vente signés (notariés){est.commune ? `, ${est.commune}` : ""} : </span>
         {est.signedRef ? (
           <strong>{eur(est.signedRef.signed)}/m² <span className="muted" style={{ fontWeight: 400 }}>(période {est.signedRef.period})</span></strong>
         ) : (
@@ -215,7 +215,7 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
             ].map((c) => (
               <div key={c.label} style={{ textAlign: "center" }}>
                 <div className="muted analyse-k">{c.label}</div>
-                <div className="analyse-num">{c.v == null ? "—" : c.eur ? eur(c.v) + c.suf : `${Math.round(c.v * 10) / 10}${c.suf}`}</div>
+                <div className="analyse-num">{c.v == null ? "·" : c.eur ? eur(c.v) + c.suf : `${Math.round(c.v * 10) / 10}${c.suf}`}</div>
               </div>
             ))}
           </div>
@@ -233,7 +233,7 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
                 <>
                   Cette décote est <strong>mesurée localement</strong> sur les actes notariés
                   {est.commune ? ` de ${est.commune}` : ""} publiés par l'Observatoire de l'Habitat
-                  (période {est.signedRef.period}) — elle est donc fiable pour cette commune.
+                  (période {est.signedRef.period}) : elle est donc fiable pour cette commune.
                 </>
               ) : (
                 <>
@@ -246,7 +246,7 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
             <p style={{ marginBottom: 0 }}>
               Le résultat est un <strong>faisceau d'indices, pas un prix ferme</strong>. Pour une maison en
               particulier, le prix au m² est trompeur : il dépend fortement du terrain, qui varie beaucoup
-              d'un bien à l'autre — mieux vaut raisonner aussi en prix total.
+              d'un bien à l'autre : mieux vaut raisonner aussi en prix total.
             </p>
           </div>
 
@@ -265,13 +265,13 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
                 </li>
                 <li>
                   <strong>Homogénéité</strong> : les €/m² s'étalent de {eur(d.p25)} à {eur(d.p75)} (du 1ᵉʳ au 3ᵉ quartile,
-                  soit +{cp.spreadPct}%) — comparables {cp.dispLabel}. Plus c'est resserré, plus c'est fiable.
+                  soit +{cp.spreadPct}%), comparables {cp.dispLabel}. Plus c'est resserré, plus c'est fiable.
                 </li>
                 <li>
                   <strong>Donnée notariale</strong> :{" "}
                   {cp.hasSigned
                     ? "un prix signé de l'Observatoire existe pour la commune, ce qui ancre la décote."
-                    : "aucun prix signé local — l'estimation est moins ancrée, d'où une note plus basse."}
+                    : "aucun prix signé local, l'estimation est moins ancrée, d'où une note plus basse."}
                 </li>
               </ul>
               <p style={{ marginBottom: 0 }} className="muted">
@@ -476,7 +476,7 @@ export default function RunPage({ params }: { params: { id: string } }) {
                     </summary>
                     <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: "0.82rem", color: "var(--ds-ink-soft)", lineHeight: 1.6 }}>
                       {exclusions.map((e) => (
-                        <li key={e.label}><strong>{e.n}</strong> — {e.label}</li>
+                        <li key={e.label}><strong>{e.n}</strong> · {e.label}</li>
                       ))}
                     </ul>
                   </details>
@@ -562,9 +562,9 @@ export default function RunPage({ params }: { params: { id: string } }) {
                             )}
                           </td>
                           <td className="num" data-label="m²">{r.surface}</td>
-                          <td className="num" data-label="€/m²">{r.priceM2 != null ? eur(r.priceM2) : "—"}</td>
-                          <td className="num" data-label="Ch.">{r.rooms ?? "—"}</td>
-                          <td data-label="CPE"><span className="badge">{r.cpe || "—"}</span></td>
+                          <td className="num" data-label="€/m²">{r.priceM2 != null ? eur(r.priceM2) : "·"}</td>
+                          <td className="num" data-label="Ch.">{r.rooms ?? "·"}</td>
+                          <td data-label="CPE"><span className="badge">{r.cpe || "·"}</span></td>
                         </tr>
                         {isOpen && (
                           <tr className="detail-row">
