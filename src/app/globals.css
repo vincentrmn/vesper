@@ -785,6 +785,11 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 @keyframes ds-shimmer { 100% { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { .ds-skeleton::after { animation: none; } }
 
+/* Spinner circulaire (scraping en cours). */
+.ds-spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--ds-line); border-top-color: var(--green); display: inline-block; vertical-align: middle; flex: none; animation: ds-spin .7s linear infinite; }
+@keyframes ds-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ds-spinner { animation-duration: 2.4s; } }
+
 /* ── Helpers formulaire ──────────────────────────────────────────────────── */
 .ds-chips { display: flex; gap: var(--ds-s2); flex-wrap: wrap; }
 .ds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--ds-s3); }

@@ -121,16 +121,11 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
       <h2 className="ds-h2" style={{ margin: 0, fontSize: "var(--ds-fs-md)" }}>
         Analyse {est.commune ? <span className="ds-muted" style={{ fontWeight: 400 }}>· {est.commune}</span> : null}
       </h2>
-      <div className="ds-row__actions" style={{ alignItems: "center", gap: 10 }}>
-        {est.enough && (
-          <span className="ds-pill" style={{ color: confColor(est.confLabel), borderColor: `${confColor(est.confLabel)}55` }}>
-            <span className="ds-dot" style={{ background: confColor(est.confLabel) }} /> Confiance {est.confLabel} ({est.confidence}/100)
-          </span>
-        )}
-        <button className="ds-btn ds-btn--ghost ds-btn--sm" onClick={() => setShowMethod((v) => !v)}>
-          {showMethod ? "▾ Méthode & confiance" : "▸ Méthode & confiance"}
-        </button>
-      </div>
+      {est.enough && (
+        <span className="ds-pill" style={{ color: confColor(est.confLabel), borderColor: `${confColor(est.confLabel)}55` }}>
+          <span className="ds-dot" style={{ background: confColor(est.confLabel) }} /> Confiance {est.confLabel} ({est.confidence}/100)
+        </span>
+      )}
     </div>
   );
 
@@ -221,12 +216,19 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
             ))}
           </div>
 
+          {/* Bouton dans le sens de lecture : sous les KPI, centré. */}
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 24 }}>
+            <button className="ds-btn ds-btn--ghost ds-btn--sm" onClick={() => setShowMethod((v) => !v)}>
+              {showMethod ? "▾ Masquer méthode & confiance" : "▸ Méthode & confiance"}
+            </button>
+          </div>
+
           {/* Niveau 3 — Méthode & confiance (repliées par défaut). */}
           {showMethod && (
             <>
           {/* Comment lire — vraies phrases. */}
           <div className="analyse-note">
-            <div className="analyse-note-h">Comment lire cette estimation</div>
+            <div className="analyse-note-h">Comment lire cette estimation ?</div>
             <p>
               Les prix affichés sont ceux des annonces (atHome, Immotop). Ils sont presque toujours
               <strong> supérieurs au prix réellement signé</strong> chez le notaire. Pour estimer ce prix signé,
@@ -406,7 +408,10 @@ export default function RunPage({ params }: { params: { id: string } }) {
       {!run && <div className="ds-empty"><span className="ds-empty__hint">Chargement…</span></div>}
 
       {run?.status === "running" && (
-        <div className="ds-card"><div className="ds-card__body" style={{ padding: 14 }}>⏳ Scraping en cours… (rafraîchissement auto)</div></div>
+        <div className="ds-card"><div className="ds-card__body" style={{ padding: 14, display: "flex", alignItems: "center", gap: 12 }}>
+          <span className="ds-spinner" aria-hidden />
+          <span>Scraping en cours… <span className="ds-muted">(rafraîchissement automatique)</span></span>
+        </div></div>
       )}
       {run?.status === "error" && (
         <div className="ds-error">Erreur : {run.error}</div>
