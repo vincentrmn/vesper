@@ -5,6 +5,8 @@ import { useState } from "react";
 
 export default function StyleGuide() {
   const [chips, setChips] = useState<Record<string, boolean>>({ reno: true, hab: false });
+  const [tab, setTab] = useState("comparables");
+  const [modal, setModal] = useState(false);
   const swatches: [string, string][] = [
     ["--ds-ink", "Ink"], ["--ds-ink-soft", "Ink soft"], ["--ds-line", "Line"],
     ["--ds-bg-subtle", "Subtle"], ["--ds-accent", "Accent"], ["--ds-accent-ink", "Accent ink"],
@@ -109,6 +111,84 @@ export default function StyleGuide() {
           </div>
         </div>
       </div>
+
+      {/* Delta prix + distribution */}
+      <div className="ds-section"><span className="ds-h2">Écart prix & distribution</span><span className="ds-rule" /></div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+        <span className="ds-delta ds-delta--up">+18 % vs signé</span>
+        <span className="ds-delta ds-delta--down">−7 % vs réf</span>
+        <span className="ds-delta ds-delta--flat">aligné</span>
+        <span className="ds-tip" data-tip="Réf. Observatoire (prix signé) : 7 650 €/m²" tabIndex={0}>
+          <span className="ds-pill"><span className="ds-dot ds-dot--warn" /> survol = info</span>
+        </span>
+      </div>
+      <div className="ds-card">
+        <div className="ds-card__body">
+          <div className="ds-label" style={{ marginBottom: 4 }}>€/m² affichés — distribution (n=111)</div>
+          <div className="ds-dist">
+            <div className="ds-dist__bar">
+              <div className="ds-dist__iqr" style={{ left: "30%", right: "28%" }} />
+              {([["6 010 €", "min", 4], ["7 200 €", "p25", 30], ["8 240 €", "médiane", 52], ["9 100 €", "p75", 72], ["12 100 €", "max", 96]] as const).map(([v, k, x]) => (
+                <span key={k}>
+                  <span className="ds-dist__tick" style={{ left: `${x}%` }} />
+                  <span className="ds-dist__lab" style={{ left: `${x}%` }}><span className="ds-dist__v ds-num">{v}</span><span className="ds-dist__k">{k}</span></span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="ds-section"><span className="ds-h2">Onglets</span><span className="ds-rule" /></div>
+      <div className="ds-tabs" role="tablist">
+        {([["comparables", "Comparables"], ["marche", "Lecture marché"], ["sources", "Sources"]] as const).map(([k, l]) => (
+          <button key={k} className="ds-tab" data-on={tab === k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>
+        ))}
+      </div>
+      <p className="ds-muted" style={{ marginTop: 8, fontSize: "var(--ds-fs-sm)" }}>Onglet actif : <strong>{tab}</strong></p>
+
+      {/* États : vide + chargement */}
+      <div className="ds-section"><span className="ds-h2">États vide & chargement</span><span className="ds-rule" /></div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 16 }}>
+        <div className="ds-empty">
+          <span className="ds-empty__title">Pas assez de comparables</span>
+          <span className="ds-empty__hint">Moins de 5 biens homogènes sur cette commune. L'estimation serait indicative — élargis la surface ou le rayon.</span>
+          <button className="ds-btn ds-btn--ghost ds-btn--sm" style={{ marginTop: 4 }}>Élargir la recherche</button>
+        </div>
+        <div className="ds-card"><div className="ds-card__body" style={{ display: "grid", gap: 10 }}>
+          <div className="ds-skeleton ds-skeleton--line" style={{ width: "55%" }} />
+          <div className="ds-skeleton ds-skeleton--line" style={{ width: "85%" }} />
+          <div className="ds-skeleton ds-skeleton--block" />
+        </div></div>
+      </div>
+
+      {/* Photo strip */}
+      <div className="ds-section"><span className="ds-h2">Bande photos</span><span className="ds-rule" /></div>
+      <div className="ds-photos">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="ds-photo" style={{ background: `linear-gradient(135deg, var(--ds-bg-sunken), var(--ds-accent-soft) ${i * 18}%)` }} title="Agrandir la photo" />
+        ))}
+      </div>
+
+      {/* Modal */}
+      <div className="ds-section"><span className="ds-h2">Modale</span><span className="ds-rule" /></div>
+      <button className="ds-btn ds-btn--secondary" onClick={() => setModal(true)}>Ouvrir la modale</button>
+      {modal && (
+        <div className="ds-overlay" role="dialog" aria-modal="true" onClick={() => setModal(false)}>
+          <div className="ds-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ds-modal__head">
+              <span className="ds-h2" style={{ fontSize: "var(--ds-fs-md)" }}>Exclure ce comparable ?</span>
+              <button className="ds-modal__x" aria-label="Fermer" onClick={() => setModal(false)}>×</button>
+            </div>
+            <div className="ds-modal__body">Le bien « Penthouse neuf, Frisange » (7 042 €/m²) sera retiré du calcul de la distribution et de la fourchette. Réversible à tout moment.</div>
+            <div className="ds-modal__foot">
+              <button className="ds-btn ds-btn--ghost" onClick={() => setModal(false)}>Annuler</button>
+              <button className="ds-btn ds-btn--primary" onClick={() => setModal(false)}>Exclure</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
