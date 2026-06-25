@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Cfg = {
@@ -41,11 +41,40 @@ function typeLabel(t: any): string {
   return "Appartement";
 }
 
+function neufLabel(cr: any): string {
+  if (cr?.newOnly) return "Neuf uniquement";
+  if (cr?.includeNew) return "Existant + neuf";
+  return "Existant uniquement";
+}
+
+const eur0 = (v: any) =>
+  typeof v === "number" ? Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " €" : "—";
+
+function prettyLoc(code: string): string {
+  const s = code.replace(/^L\d+-/, "").replace(/-/g, " ");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function listZones(cr: any): string {
+  const lc = Array.isArray(cr?.locCodes) ? cr.locCodes : [];
+  if (!lc.length) return "—";
+  return lc.map(prettyLoc).join(", ");
+}
+
+function HypRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "5px 0", borderBottom: "1px solid var(--line)" }}>
+      <span className="muted" style={{ fontSize: "0.82rem" }}>{label}</span>
+      <span className="mono" style={{ fontSize: "0.85rem", textAlign: "right" }}>{value}</span>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [configs, setConfigs] = useState<Cfg[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
   const [busy, setBusy] = useState<number | null>(null);
   const [showRuns, setShowRuns] = useState(true);
+  const [openCfg, setOpenCfg] = useState<Record<number, boolean>>({});
   const router = useRouter();
 
   async function load() {
@@ -106,25 +135,46 @@ export default function Dashboard() {
         {configs.length === 0 && <p className="empty">Aucune recherche. Crée ta première estimation.</p>}
         {configs.map((c) => {
           const cr = c.criteria || {};
+          const isOpen = !!openCfg[c.id];
           return (
-            <div className="list-item" key={c.id}>
-              <div>
-                <strong>{c.name}</strong>
-                <div className="muted" style={{ fontSize: "0.85rem", marginTop: 2 }}>
-                  {typeLabel(cr.propertyType)} · {summarizeZones(cr)} · CPE {summarizeCpe(cr)} ·{" "}
-                  {summarizeSources(cr)}
-                  {cr.includeNew ? " · neuf inclus" : ""}
+            <Fragment key={c.id}>
+              <div className="list-item" style={isOpen ? { marginBottom: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}>
+                <div>
+                  <strong>{c.name}</strong>
+                  <div className="muted" style={{ fontSize: "0.85rem", marginTop: 2 }}>
+                    {typeLabel(cr.propertyType)} · {summarizeZones(cr)} · CPE {summarizeCpe(cr)} ·{" "}
+                    {summarizeSources(cr)}
+                  </div>
+                </div>
+                <div className="row" style={{ flex: "0 0 auto", alignItems: "center" }}>
+                  <button className="btn ghost" onClick={() => setOpenCfg((p) => ({ ...p, [c.id]: !p[c.id] }))}>
+                    {isOpen ? "Masquer" : "Voir"}
+                  </button>
+                  <button className="btn" onClick={() => relancer(c.id)} disabled={busy === c.id}>
+                    {busy === c.id ? "..." : "Relancer"}
+                  </button>
+                  <button className="btn ghost" onClick={() => supprimer(c.id)}>
+                    ✕
+                  </button>
                 </div>
               </div>
-              <div className="row" style={{ flex: "0 0 auto", alignItems: "center" }}>
-                <button className="btn" onClick={() => relancer(c.id)} disabled={busy === c.id}>
-                  {busy === c.id ? "..." : "Relancer"}
-                </button>
-                <button className="btn ghost" onClick={() => supprimer(c.id)}>
-                  ✕
-                </button>
-              </div>
-            </div>
+              {isOpen && (
+                <div style={{ border: "1px solid var(--line)", borderTop: "none", borderRadius: "0 0 12px 12px", background: "var(--paper-2)", padding: "14px 16px", marginBottom: 10 }}>
+                  <div className="muted" style={{ fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    Critères de recherche
+                  </div>
+                  <HypRow label="Type de bien" value={typeLabel(cr.propertyType)} />
+                  <HypRow label="Zones" value={listZones(cr)} />
+                  <HypRow label="Surface" value={`${cr.surfaceMin ?? "—"} → ${cr.surfaceMax ?? "—"} m²`} />
+                  <HypRow label="Prix" value={`${cr.priceMin != null ? eur0(cr.priceMin) : "—"} → ${cr.priceMax != null ? eur0(cr.priceMax) : "—"}`} />
+                  <HypRow label="Chambres min" value={cr.bedroomsMin != null ? String(cr.bedroomsMin) : "—"} />
+                  <HypRow label="Année de construction" value={`${cr.buildYearMin ?? "—"} → ${cr.buildYearMax ?? "—"}`} />
+                  <HypRow label="CPE" value={summarizeCpe(cr)} />
+                  <HypRow label="Construction" value={neufLabel(cr)} />
+                  <HypRow label="Sources" value={summarizeSources(cr)} />
+                </div>
+              )}
+            </Fragment>
           );
         })}
       </div>

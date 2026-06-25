@@ -1,24 +1,34 @@
 "use client";
-import { useEffect, useState } from "react";
-import type { ZoneTree } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import type { ZoneTree, Zone } from "@/lib/types";
 
 type Props = {
   value: string[];
   onChange: (locCodes: string[]) => void;
 };
 
+const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+type FlatZone = {
+  locCode: string;
+  label: string;
+  isCommune: boolean;
+  communeLabel?: string;
+};
+
 /**
- * ZonePicker — sélection de localisation avec toggle "Tout {ville}" + chips quartiers.
- *
- * Convention de l'état émis (value) :
- *   - ["L9-luxembourg"]                  → toggle "Tout Luxembourg-Ville" ON
- *   - ["L10-belair", "L10-merl", …]      → quartiers individuels
- *   - []                                 → aucune sélection (refusé par le formulaire)
+ * ZonePicker — recherche libre (commune ou localité), affichage dynamique (façon
+ * atHome). On tape, on choisit dans la liste → chip sélectionné. Pour une commune
+ * sélectionnée, on peut déplier ses localités et en cocher.
+ * `value` = tableau de loc_codes (inchangé : compat formulaire + trigger).
  */
 export default function ZonePicker({ value, onChange }: Props) {
   const [tree, setTree] = useState<ZoneTree[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -29,8 +39,7 @@ export default function ZonePicker({ value, onChange }: Props) {
         const json = await res.json();
         if (!cancelled) setTree(json.zones || []);
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (!cancelled) setError(msg);
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -40,153 +49,172 @@ export default function ZonePicker({ value, onChange }: Props) {
     };
   }, []);
 
-  if (loading) return <p className="zone-picker__loading">Chargement des zones…</p>;
-  if (error)
-    return <p className="zone-picker__error">Impossible de charger les zones ({error})</p>;
-  if (tree.length === 0)
-    return <p className="zone-picker__error">Aucune zone configurée.</p>;
+  // Aplatissement : communes + localités, + index loc_code -> label / enfants.
+  const { flat, labelByLoc, childrenByCommuneLoc } = useMemo(() => {
+    const flat: FlatZone[] = [];
+    const labelByLoc = new Map<string, string>();
+    const childrenByCommuneLoc = new Map<string, Zone[]>();
+    for (const c of tree) {
+      flat.push({ locCode: c.loc_code, label: c.label, isCommune: true });
+      labelByLoc.set(c.loc_code, c.label);
+      childrenByCommuneLoc.set(c.loc_code, c.quartiers || []);
+      for (const q of c.quartiers || []) {
+        flat.push({ locCode: q.loc_code, label: q.label, isCommune: false, communeLabel: c.label });
+        labelByLoc.set(q.loc_code, q.label);
+      }
+    }
+    return { flat, labelByLoc, childrenByCommuneLoc };
+  }, [tree]);
 
-  return <ZonePickerInner tree={tree} value={value} onChange={onChange} />;
-}
-
-const norm = (s: string) =>
-  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-function ZonePickerInner({
-  tree,
-  value,
-  onChange,
-}: {
-  tree: ZoneTree[];
-  value: string[];
-  onChange: (codes: string[]) => void;
-}) {
-  const [q, setQ] = useState("");
-  const nq = norm(q.trim());
-
-  // Filtre : commune dont le label matche (commune entière) OU dont une localité
-  // matche (on ne montre alors que les localités correspondantes). Sans recherche,
-  // on affiche tout (cap à 80 communes pour rester fluide).
-  let cities: ZoneTree[];
-  if (!nq) {
-    cities = tree.slice(0, 80);
-  } else {
-    cities = tree
-      .map((city) => {
-        if (norm(city.label).includes(nq)) return city;
-        const qs = city.quartiers.filter((x) => norm(x.label).includes(nq));
-        return qs.length ? { ...city, quartiers: qs } : null;
+  const matches = useMemo(() => {
+    const nq = norm(q.trim());
+    if (nq.length < 1) return [];
+    const scored = flat
+      .map((z) => {
+        const nl = norm(z.label);
+        const idx = nl.indexOf(nq);
+        if (idx < 0) return null;
+        // priorité : commence par > contient ; commune avant localité.
+        const score = (idx === 0 ? 0 : 100) + (z.isCommune ? 0 : 10) + idx + z.label.length / 100;
+        return { z, score };
       })
-      .filter((c): c is ZoneTree => !!c)
-      .slice(0, 60);
+      .filter((x): x is { z: FlatZone; score: number } => !!x)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 12)
+      .map((x) => x.z);
+    return scored;
+  }, [q, flat]);
+
+  function add(locCode: string) {
+    if (!value.includes(locCode)) onChange([...value, locCode]);
+    setQ("");
+    setOpen(false);
   }
+  function remove(locCode: string) {
+    onChange(value.filter((c) => c !== locCode));
+  }
+  function toggleChild(qLoc: string) {
+    value.includes(qLoc) ? remove(qLoc) : onChange([...value, qLoc]);
+  }
+
+  if (loading) return <p className="zone-picker__loading">Chargement des zones…</p>;
+  if (error) return <p className="zone-picker__error">Impossible de charger les zones ({error})</p>;
+
+  // Communes sélectionnées (pour proposer leurs localités).
+  const selectedCommunes = value.filter((lc) => childrenByCommuneLoc.has(lc) && (childrenByCommuneLoc.get(lc) || []).length > 0);
 
   return (
     <div>
-      <input
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Filtrer : commune ou localité (ex : Esch, Bertrange, Hassel…)"
-        style={{ marginBottom: 10 }}
-      />
-      {!nq && tree.length > 80 && (
-        <p className="zone-picker__hint" style={{ marginTop: 0 }}>
-          {tree.length} communes seedées — tape pour filtrer (80 premières affichées).
-        </p>
+      {/* Chips sélectionnés */}
+      {value.length > 0 && (
+        <div className="chips" style={{ marginBottom: 10 }}>
+          {value.map((lc) => (
+            <span key={lc} className="chip on" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {labelByLoc.get(lc) || lc}
+              <button
+                type="button"
+                onClick={() => remove(lc)}
+                aria-label="Retirer"
+                style={{ border: "none", background: "transparent", cursor: "pointer", color: "inherit", fontWeight: 700, fontSize: "1rem", lineHeight: 1, padding: 0 }}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
       )}
-      <div className="zone-picker">
-        {cities.map((city) => (
-          <CityPicker key={city.id} city={city} value={value} onChange={onChange} />
-        ))}
-        {nq && cities.length === 0 && (
-          <p className="zone-picker__error">Aucune zone ne correspond à « {q} ».</p>
+
+      {/* Champ de recherche + dropdown dynamique */}
+      <div style={{ position: "relative" }}>
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Rechercher une commune ou une localité (ex : Weiler-la-Tour, Esch…)"
+          autoComplete="off"
+        />
+        {open && matches.length > 0 && (
+          <div
+            style={{
+              position: "absolute", zIndex: 20, left: 0, right: 0, top: "calc(100% + 4px)",
+              background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 10,
+              boxShadow: "var(--shadow)", maxHeight: 300, overflowY: "auto",
+            }}
+          >
+            {matches.map((m) => (
+              <button
+                key={m.locCode}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  add(m.locCode);
+                }}
+                style={{
+                  display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between",
+                  gap: 8, padding: "8px 12px", border: "none", borderBottom: "1px solid var(--line)",
+                  background: value.includes(m.locCode) ? "var(--green-soft)" : "transparent",
+                  cursor: "pointer", textAlign: "left", fontSize: "0.9rem",
+                }}
+              >
+                <span>{m.label}</span>
+                <span className="muted" style={{ fontSize: "0.72rem" }}>
+                  {m.isCommune ? "Commune" : `Localité · ${m.communeLabel}`}
+                </span>
+              </button>
+            ))}
+          </div>
         )}
       </div>
-    </div>
-  );
-}
 
-function CityPicker({
-  city,
-  value,
-  onChange,
-}: {
-  city: ZoneTree;
-  value: string[];
-  onChange: (codes: string[]) => void;
-}) {
-  const cityCode = city.loc_code;
-  const quartierSet = new Set(city.quartiers.map((q) => q.loc_code));
-
-  const isAll = value.includes(cityCode);
-  const selectedQuartiers = value.filter((c) => quartierSet.has(c));
-
-  function toggleAll() {
-    if (isAll) {
-      onChange(value.filter((c) => c !== cityCode));
-    } else {
-      // Activer "tout" → retirer le code ville + les quartiers de cette ville
-      const others = value.filter((c) => c !== cityCode && !quartierSet.has(c));
-      onChange([...others, cityCode]);
-    }
-  }
-
-  function toggleQuartier(qCode: string) {
-    // Si "tout" actif, on bascule en mode quartiers : on retire d'abord le code ville
-    const base = isAll ? value.filter((c) => c !== cityCode) : value.slice();
-    if (base.includes(qCode)) {
-      onChange(base.filter((c) => c !== qCode));
-    } else {
-      onChange([...base, qCode]);
-    }
-  }
-
-  return (
-    <fieldset className="zone-picker__city">
-      <legend>{city.label}</legend>
-
-      <div className="zone-picker__toggle-row">
-        <label className="toggle-switch">
-          <input type="checkbox" checked={isAll} onChange={toggleAll} />
-          <span className="toggle-switch__slider" />
-        </label>
-        <span className="zone-picker__toggle-label">Tout {city.label}</span>
-      </div>
-
-      <div
-        className={`chips zone-picker__quartiers ${isAll ? "is-disabled" : ""}`}
-        aria-disabled={isAll}
-      >
-        {city.quartiers.map((q) => {
-          const on = !isAll && value.includes(q.loc_code);
-          return (
-            <span
-              key={q.id}
-              className={`chip ${on ? "on" : ""}`}
-              role="button"
-              tabIndex={isAll ? -1 : 0}
-              onClick={() => !isAll && toggleQuartier(q.loc_code)}
-              onKeyDown={(e) => {
-                if ((e.key === "Enter" || e.key === " ") && !isAll) {
-                  e.preventDefault();
-                  toggleQuartier(q.loc_code);
-                }
-              }}
+      {/* Localités d'une commune sélectionnée (toggle) */}
+      {selectedCommunes.map((lc) => {
+        const kids = childrenByCommuneLoc.get(lc) || [];
+        const isOpen = !!expanded[lc];
+        return (
+          <div key={lc} style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn ghost"
+              style={{ fontSize: "0.8rem", padding: "4px 10px" }}
+              onClick={() => setExpanded((p) => ({ ...p, [lc]: !p[lc] }))}
             >
-              {q.label}
-            </span>
-          );
-        })}
-      </div>
+              {isOpen ? "▾" : "▸"} Localités de {labelByLoc.get(lc)} ({kids.length})
+            </button>
+            {isOpen && (
+              <div className="chips" style={{ marginTop: 8 }}>
+                {kids.map((k) => (
+                  <span
+                    key={k.loc_code}
+                    className={`chip ${value.includes(k.loc_code) ? "on" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleChild(k.loc_code)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleChild(k.loc_code);
+                      }
+                    }}
+                  >
+                    {k.label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
-      {!isAll && selectedQuartiers.length > 0 && (
-        <p className="zone-picker__hint">
-          {selectedQuartiers.length} quartier
-          {selectedQuartiers.length > 1 ? "s" : ""} sélectionné
-          {selectedQuartiers.length > 1 ? "s" : ""}
+      {value.length === 0 && (
+        <p className="zone-picker__hint" style={{ marginTop: 6 }}>
+          Tape le début d'une commune ou localité, puis choisis dans la liste.
         </p>
       )}
-    </fieldset>
+    </div>
   );
 }

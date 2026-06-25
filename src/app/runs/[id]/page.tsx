@@ -1,7 +1,7 @@
 "use client";
 import { Fragment, useEffect, useState } from "react";
 import PhotoStrip from "@/components/PhotoStrip";
-import { extractKeywords } from "@/lib/keywords";
+import { extractKeywords, extractSurfaces } from "@/lib/keywords";
 
 type Comparable = {
   id: string;
@@ -20,6 +20,7 @@ type Comparable = {
   marketStatus?: "active" | "sold";
   photos?: string[];
   description?: string | null;
+  buildYear?: number | null;
 };
 type RunStats = {
   totalAtHome: number;
@@ -295,8 +296,34 @@ export default function RunPage({ params }: { params: { id: string } }) {
           {results.length > 0 && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="muted" style={{ fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-                Distribution des €/m² — {included.length} comparable{plur(included.length)} retenu{plur(included.length)}
+                Moyennes — {included.length} comparable{plur(included.length)} retenu{plur(included.length)}
                 {excluded.size > 0 ? ` (${excluded.size} exclu${plur(excluded.size)})` : ""}
+              </div>
+              {(() => {
+                const sv = included.map((c) => c.surface).filter((v): v is number => typeof v === "number" && v > 0);
+                const pv = included.map((c) => c.price).filter((v): v is number => typeof v === "number" && v > 0);
+                const mv = included.map((c) => c.priceM2).filter((v): v is number => typeof v === "number" && v > 0);
+                const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+                const cells = [
+                  { label: "Surface moy.", v: avg(sv), suf: " m²", round: 1 },
+                  { label: "Prix moyen", v: avg(pv), suf: "", eur: true },
+                  { label: "€/m² moyen", v: avg(mv), suf: "/m²", eur: true },
+                ];
+                return (
+                  <div className="grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 14 }}>
+                    {cells.map((c) => (
+                      <div key={c.label} style={{ textAlign: "center" }}>
+                        <div className="muted" style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{c.label}</div>
+                        <div className="mono" style={{ fontSize: "1.05rem", fontWeight: 700 }}>
+                          {c.v == null ? "—" : c.eur ? eur(c.v) + c.suf : `${Math.round(c.v * 10) / 10}${c.suf}`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+              <div className="muted" style={{ fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+                Distribution des €/m²
               </div>
               <Distribution comps={included} />
               <p className="muted" style={{ fontSize: "0.78rem", margin: "12px 0 0", fontStyle: "italic" }}>
@@ -355,17 +382,22 @@ export default function RunPage({ params }: { params: { id: string } }) {
                             />
                           </td>
                           <td className="cell-main">
-                            <a href={r.url} target="_blank" rel="noreferrer" style={isExcl ? { textDecoration: "line-through" } : undefined}>
+                            <a className="bien-title" href={r.url} target="_blank" rel="noreferrer" style={isExcl ? { textDecoration: "line-through" } : undefined}>
                               {displayTitle(r)}
                             </a>
-                            {sold && <span className="src-badge" style={{ background: "#fde2e2", color: "#a12020" }} title="Vendu / sous compromis">Vendu</span>}
-                            {r.source === "both" && r.altUrl ? (
-                              <a className="src-badge" href={r.altUrl} target="_blank" rel="noreferrer" title="Présent sur les deux portails">atHome + Immotop ↗</a>
-                            ) : r.source === "immotop" ? (
-                              <span className="src-badge" title="Source : immotop.lu">Immotop</span>
-                            ) : null}
-                            <EtatBadge etat={r.etat} />
                             {r.commune && <div className="muted" style={{ fontSize: "0.78rem" }}>{r.commune}</div>}
+                            <div className="tag-row">
+                              {r.source === "both" && r.altUrl ? (
+                                <a className="src-badge both" href={r.altUrl} target="_blank" rel="noreferrer" title="Présent sur les deux portails">atHome + Immotop ↗</a>
+                              ) : r.source === "immotop" ? (
+                                <span className="src-badge immotop" title="Source : immotop.lu">Immotop</span>
+                              ) : (
+                                <span className="src-badge" title="Source : atHome.lu">atHome</span>
+                              )}
+                              {sold && <span className="tag sold" title="Vendu / sous compromis">Vendu</span>}
+                              <EtatBadge etat={r.etat} />
+                              {kws.some((k) => k.label === "Neuf") && <span className="tag neuf">Neuf</span>}
+                            </div>
                           </td>
                           <td className="num" data-label="Prix">
                             {eur(r.price)}
@@ -384,6 +416,25 @@ export default function RunPage({ params }: { params: { id: string } }) {
                           <tr className="detail-row">
                             <td colSpan={8} style={{ background: "var(--paper-2)", padding: "12px 16px" }}>
                               <PhotoStrip photos={r.photos} />
+                              {(() => {
+                                const surf = extractSurfaces(r.description);
+                                const facts: { l: string; v: string }[] = [];
+                                if (r.buildYear) facts.push({ l: "Année de construction", v: String(r.buildYear) });
+                                facts.push({ l: "Surface (champ)", v: `${r.surface} m²` });
+                                if (surf.habitable) facts.push({ l: "Surface habitable (annonce)", v: `${surf.habitable} m²` });
+                                if (surf.terrain) facts.push({ l: "Terrain (annonce)", v: `${surf.terrain} m²` });
+                                if (r.rooms) facts.push({ l: "Chambres", v: String(r.rooms) });
+                                return (
+                                  <div className="tag-row" style={{ marginTop: 10, gap: 14 }}>
+                                    {facts.map((f) => (
+                                      <span key={f.l} style={{ fontSize: "0.8rem" }}>
+                                        <span className="muted">{f.l} : </span>
+                                        <strong className="mono">{f.v}</strong>
+                                      </span>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
                               {kws.length > 0 && (
                                 <div className="chips" style={{ marginTop: 10, marginBottom: 4 }}>
                                   {kws.map((k) => (
@@ -397,7 +448,9 @@ export default function RunPage({ params }: { params: { id: string } }) {
                                 </p>
                               ) : (
                                 <p className="muted" style={{ fontSize: "0.82rem", fontStyle: "italic", margin: "10px 0 0" }}>
-                                  Pas de description scrapée pour ce bien.
+                                  {r.source === "immotop"
+                                    ? "Immotop ne fournit pas de description dans sa liste (réservée à la fiche, sous anti-bot)."
+                                    : "Pas de description pour ce bien sur atHome."}
                                 </p>
                               )}
                               <p style={{ margin: "10px 0 0" }}>

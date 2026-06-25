@@ -55,3 +55,21 @@ export function extractKeywords(text?: string | null): Keyword[] {
   }
   return out;
 }
+
+// Surfaces mentionnées dans la description (souvent ≠ surface du champ).
+// Best-effort, atHome uniquement (Immotop n'a pas de description en liste).
+export type SurfaceInfo = { habitable: number | null; terrain: number | null };
+export function extractSurfaces(text?: string | null): SurfaceInfo {
+  if (!text) return { habitable: null, terrain: null };
+  const num = (m: RegExpMatchArray | null) =>
+    m ? Math.round(Number(m[1].replace(/[\s.]/g, "").replace(",", "."))) : null;
+  // « surface habitable (de) 123 m² » / « habitable : 123 m² »
+  const hab = num(text.match(/surface\s+habitable[^0-9]{0,12}(\d[\d\s.,]*)\s*m²?/i));
+  // « terrain (de) 4,5 ares » ou « terrain 600 m² »
+  let terrain: number | null = null;
+  const tAre = text.match(/terrain[^0-9]{0,14}(\d[\d\s.,]*)\s*(?:ares?|a\b)/i);
+  const tM2 = text.match(/terrain[^0-9]{0,14}(\d[\d\s.,]*)\s*m²?/i);
+  if (tAre) terrain = Math.round(Number(tAre[1].replace(",", ".")) * 100); // ares → m²
+  else if (tM2) terrain = num(tM2);
+  return { habitable: hab, terrain };
+}

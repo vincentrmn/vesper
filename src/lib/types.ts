@@ -18,6 +18,8 @@ export type Listing = {
   address?: string | null;
   /** Description de l'annonce (relevé de marché). */
   description?: string | null;
+  /** Année de construction (atHome `buildingYear` si renseignée). */
+  buildYear?: number | null;
   /** État de rénovation (immotop : ga4Condition ; atHome : absent). */
   etat?: "a_renover" | "habitable" | "renove" | null;
   /** Statut marché : 'sold' = vendu / sous compromis (atHome isSoldProperty). */
@@ -50,10 +52,17 @@ export type Criteria = {
   qTokens?: string[];
   /** Inclure les programmes neufs en construction. false (défaut) => exclus. */
   includeNew?: boolean;
+  /** Neuf UNIQUEMENT (exclut l'existant). Prioritaire sur includeNew. */
+  newOnly?: boolean;
   surfaceMin?: number;
   surfaceMax?: number;
   priceMin?: number;
   priceMax?: number;
+  /** Nombre de chambres minimum (atHome `bedrooms_min`). */
+  bedroomsMin?: number;
+  /** Année de construction min/max (atHome : filtré côté scraper sur la donnée). */
+  buildYearMin?: number;
+  buildYearMax?: number;
   /** Classes CPE à conserver (atHome). [] (défaut) => aucun filtre CPE. */
   cpeClasses: string[];
   /** Quand on filtre par classes CPE, conserver AUSSI les biens sans note (atHome). */

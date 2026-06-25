@@ -19,12 +19,16 @@ export default function NewSearch() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [propertyType, setPropertyType] = useState("apartment");
-  const [includeNew, setIncludeNew] = useState(false);
+  // Construction : existant uniquement (défaut) | neuf uniquement | les deux.
+  const [construction, setConstruction] = useState<"existant" | "neuf" | "both">("existant");
   const [locCodes, setLocCodes] = useState<string[]>(["L9-luxembourg"]);
   const [surfaceMin, setSurfaceMin] = useState("");
   const [surfaceMax, setSurfaceMax] = useState("");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
+  const [bedroomsMin, setBedroomsMin] = useState("");
+  const [buildYearMin, setBuildYearMin] = useState("");
+  const [buildYearMax, setBuildYearMax] = useState("");
   const [allCpe, setAllCpe] = useState(true);
   const [cpe, setCpe] = useState<string[]>([...CPE]);
   const [includeNoCpe, setIncludeNoCpe] = useState(false);
@@ -55,11 +59,15 @@ export default function NewSearch() {
       criteria: {
         propertyType,
         locCodes,
-        includeNew,
+        includeNew: construction !== "existant",
+        newOnly: construction === "neuf",
         surfaceMin: num(surfaceMin),
         surfaceMax: num(surfaceMax),
         priceMin: num(priceMin),
         priceMax: num(priceMax),
+        bedroomsMin: num(bedroomsMin),
+        buildYearMin: num(buildYearMin),
+        buildYearMax: num(buildYearMax),
         cpeClasses: allCpe ? [] : cpe,
         includeNoCpe: allCpe ? false : includeNoCpe,
         sources,
@@ -143,23 +151,21 @@ export default function NewSearch() {
       {sources.length > 0 && (
         <>
           <div className="card">
-            <div className="zone-picker__toggle-row" style={{ borderBottom: "none", paddingBottom: 0, marginBottom: 0 }}>
-              <Toggle checked={!includeNew} onChange={(v) => setIncludeNew(!v)} />
-              <span className="zone-picker__toggle-label">Bien existant uniquement</span>
-            </div>
-            {includeNew && (
-              <p className="zone-picker__hint" style={{ marginTop: 6 }}>
-                Désactivé : les programmes neufs en construction sont aussi inclus.
-              </p>
-            )}
-
-            <div className="row" style={{ marginTop: 16 }}>
+            <div className="row">
               <div>
                 <label>Type de bien</label>
                 <select value={propertyType} onChange={(e) => setPropertyType(e.target.value)}>
                   <option value="apartment">Appartement</option>
                   <option value="house">Maison</option>
                   <option value="both">Les deux</option>
+                </select>
+              </div>
+              <div>
+                <label>Construction</label>
+                <select value={construction} onChange={(e) => setConstruction(e.target.value as any)}>
+                  <option value="existant">Existant uniquement</option>
+                  <option value="neuf">Neuf uniquement</option>
+                  <option value="both">Existant + neuf</option>
                 </select>
               </div>
             </div>
@@ -175,6 +181,15 @@ export default function NewSearch() {
               <div><label>Prix min (€)</label><input type="number" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} /></div>
               <div><label>Prix max (€)</label><input type="number" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} /></div>
             </div>
+
+            <div className="row" style={{ marginTop: 16 }}>
+              <div><label>Chambres min</label><input type="number" value={bedroomsMin} onChange={(e) => setBedroomsMin(e.target.value)} placeholder="ex : 2" /></div>
+              <div><label>Année constr. min</label><input type="number" value={buildYearMin} onChange={(e) => setBuildYearMin(e.target.value)} placeholder="ex : 1990" /></div>
+              <div><label>Année constr. max</label><input type="number" value={buildYearMax} onChange={(e) => setBuildYearMax(e.target.value)} /></div>
+            </div>
+            <p className="zone-picker__hint" style={{ marginTop: 6 }}>
+              Année de construction : filtrée sur atHome quand l'annonce la renseigne (Immotop ne la fournit pas en liste).
+            </p>
           </div>
 
           <div className="section-title">
