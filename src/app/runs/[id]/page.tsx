@@ -110,10 +110,18 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
   const mv = comps.map((c) => c.priceM2).filter((v): v is number => typeof v === "number" && v > 0);
 
   if (!est) {
+    // Skeleton à la forme de la carte Analyse → pas de saut de mise en page, le
+    // contenu réel glisse en place dès qu'il arrive (fade-in).
     return (
-      <div className="ds-card" style={{ marginBottom: 16 }}><div className="ds-card__body">
-        <p className="ds-muted" style={{ margin: 0, fontStyle: "italic" }}>Analyse en cours…</p>
-      </div></div>
+      <div className="card analyse" style={{ marginBottom: 16, borderLeft: "3px solid var(--green)" }}>
+        <div className="ds-skeleton ds-skeleton--line" style={{ width: 200, height: 16, marginBottom: 18 }} />
+        <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
+          <div className="ds-skeleton" style={{ flex: 1, height: 92 }} />
+          <div className="ds-skeleton" style={{ width: 64, height: 92 }} />
+          <div className="ds-skeleton" style={{ flex: 1.35, height: 92 }} />
+        </div>
+        <div className="ds-skeleton ds-skeleton--line" style={{ width: "60%", height: 13, marginTop: 18 }} />
+      </div>
     );
   }
 
@@ -146,7 +154,7 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
   const cp = est.confParts;
 
   return (
-    <div className="card analyse" style={{ marginBottom: 16, borderLeft: "3px solid var(--green)" }}>
+    <div className="card analyse ds-rise" style={{ marginBottom: 16, borderLeft: "3px solid var(--green)" }}>
       {header}
 
       {/* Le chemin du prix : Affiché → −décote → Signé estimé. */}
@@ -314,16 +322,19 @@ export default function RunPage({ params }: { params: { id: string } }) {
     };
   }, [params.id]);
 
-  // Lecture marché : (re)calculée quand le run est prêt et à chaque inclusion/exclusion.
+  // Lecture marché : 1ère lecture IMMÉDIATE (pas de pop tardif) ; les re-calculs
+  // sur inclusion/exclusion sont débouncés pour ne pas spammer l'API.
   useEffect(() => {
     if (run?.status !== "done") return;
+    const delay = estimate ? 300 : 0;
     const t = setTimeout(() => {
       fetch(`/api/estimate?run=${params.id}`)
         .then((r) => r.json())
         .then((e) => setEstimate(e))
         .catch(() => {});
-    }, 350);
+    }, delay);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id, run?.status, excluded]);
 
   const stats = run?.stats;
@@ -501,7 +512,7 @@ export default function RunPage({ params }: { params: { id: string } }) {
 
           {run.count === 0 && <div className="ds-empty"><span className="ds-empty__hint">Aucun bien ne correspond aux critères.</span></div>}
           {run.count > 0 && (
-            <div className="card" style={{ padding: 0, overflowX: "auto" }}>
+            <div className="card ds-rise-2" style={{ padding: 0, overflowX: "auto" }}>
               <table className="prop-table">
                 <thead>
                   <tr>
