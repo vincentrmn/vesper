@@ -225,6 +225,15 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
               on applique une décote de <strong>{est.decotePct}%</strong>.
             </p>
             <p>
+              <strong>D'où vient la fourchette</strong> ({eur(e.low)} – {eur(e.high)}/m², en vert) ? On part des
+              quartiles <strong>P25</strong> et <strong>P75</strong> des €/m² <strong>affichés</strong> de tes
+              comparables ({eur(d.p25)} – {eur(d.p75)}, la moitié centrale du marché — la zone foncée de la
+              distribution), et on retire la décote à chaque borne :
+              {" "}{eur(d.p25)} → <strong>{eur(e.low)}</strong> et {eur(d.p75)} → <strong>{eur(e.high)}</strong>.
+              Sa <strong>largeur</strong> reflète donc la dispersion de tes annonces ; son <strong>niveau</strong>, la décote.
+              La médiane signée ({eur(e.median)}/m²) suit le même calcul sur la médiane affichée.
+            </p>
+            <p>
               {est.signedRef ? (
                 <>
                   Cette décote est <strong>mesurée localement</strong> sur les actes notariés
