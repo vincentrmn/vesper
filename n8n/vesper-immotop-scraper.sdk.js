@@ -116,9 +116,10 @@ const communes = Array.isArray(c.communeNames) && c.communeNames.length ? c.comm
 const idCategoria = 1;
 const PT = c.propertyType || 'apartment';
 // idTipologia = espace de FILTRE immotop. Appartement individuel = 4 (toutes
-// tailles, studio inclus) + 5 (penthouse). Maison = 7 (indiv.+jumelee) + 12
-// (villa). 6=parking, 10=immeuble entier, 16=commerce, 28=terrain -> jamais.
-const TIPO = PT === 'house' ? [7, 12] : PT === 'both' ? [4, 5, 7, 12] : [4, 5];
+// tailles, studio inclus) + 5 (penthouse). Maison = 7 (indiv.+jumelee) + 11
+// (ferme) + 12 (villa) — c'est exactement le macro « Maisons » d'immotop.
+// 6=parking, 10=immeuble entier, 16=commerce, 28=terrain -> jamais.
+const TIPO = PT === 'house' ? [7, 11, 12] : PT === 'both' ? [4, 5, 7, 11, 12] : [4, 5];
 const pathSeg = PT === 'house' ? 'vente-maisons' : 'vente-appartements';
 // Filtre etat (a_renover/habitable/renove) : pas de param serveur fiable, on filtre
 // cote scraper sur ga4Condition (la condition, pas le statut de programme).
