@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureSchema } from "@/lib/db";
-import { fetchActesVille, fetchActesAllCommunes, debugObservatoire } from "@/lib/observatoire";
+import { fetchActesVille, fetchActesAllCommunes } from "@/lib/observatoire";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,9 +17,6 @@ export async function POST(req: NextRequest) {
     const expected = process.env.INGEST_SECRET || "";
     if (expected && body?.secret !== expected) {
       return NextResponse.json({ error: "secret invalide" }, { status: 401 });
-    }
-    if (req.nextUrl.searchParams.get("debug")) {
-      return NextResponse.json(await debugObservatoire());
     }
     const [ville, communes] = await Promise.all([fetchActesVille(), fetchActesAllCommunes()]);
     return NextResponse.json({ ok: true, ville, communes });
