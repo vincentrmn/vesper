@@ -1,0 +1,74 @@
+import { workflow, node, trigger, expr } from '@n8n/workflow-sdk';
+
+const webhookFromApp = trigger({
+  type: 'n8n-nodes-base.webhook',
+  version: 2.1,
+  config: { name: 'Webhook depuis app', parameters: { httpMethod: 'POST', path: 'vesper-search', responseMode: 'onReceived' } },
+  output: [{ body: { runId: 1, criteria: {}, ingestUrl: 'https://x', ingestSecret: 'x' } }]
+});
+
+const scrapeSrp = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: { name: 'Scrape SRP (toutes pages)', parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: "const b = $json.body || $json;\nconst c = b.criteria || {};\n\nfunction pickLoc() {\n  if (Array.isArray(c.locCodes) && c.locCodes.length) {\n    return c.locCodes.map(s => String(s).trim()).filter(Boolean).join(',');\n  }\n  return null;\n}\nfunction pickQ() {\n  if (Array.isArray(c.qTokens) && c.qTokens.length) {\n    return c.qTokens.map(s => String(s).trim()).filter(Boolean).join(',');\n  }\n  return null;\n}\nfunction pickEnergy() {\n  if (c.includeNoCpe) return null;\n  const classes = Array.isArray(c.cpeClasses) ? c.cpeClasses.filter(Boolean) : [];\n  if (classes.length === 0 || classes.length >= 9) return null;\n  return classes.join(',');\n}\n\nconst loc = pickLoc();\nconst q = pickQ();\nconst energy = pickEnergy();\n\nconst APT_PTYPES = 'flat,4,7,5,6,42,32,41,43';\nconst HOUSE_PTYPES = 'house';\n\nfunction buildUrl(page) {\n  const pairs = [];\n  const add = (k, v) => { if (v !== undefined && v !== null && v !== '') pairs.push(k + '=' + String(v)); };\n  add('tr', 'buy');\n  if (!c.includeNew) add('old_build', 'true');\n  if (q) add('q', q);\n  if (loc) add('loc', loc);\n  add('ptypes', c.propertyType === 'house' ? HOUSE_PTYPES : APT_PTYPES);\n  add('srf_min', c.surfaceMin);\n  add('srf_max', c.surfaceMax);\n  add('price_min', c.priceMin);\n  add('price_max', c.priceMax);\n  add('bedrooms_min', c.bedroomsMin);\n  if (energy) add('energy_class', energy);\n  add('page', String(page));\n  return 'https://www.athome.lu/srp/?' + pairs.join('&');\n}\n\nfunction extractState(html) {\n  const mi = html.indexOf('window.__INITIAL_STATE__');\n  if (mi === -1) throw new Error('INITIAL_STATE introuvable (page bloquee ou structure changee)');\n  let i = html.indexOf('=', mi) + 1;\n  while (/\\s/.test(html[i])) i++;\n  const s = i; let depth = 0, inStr = false, esc = false;\n  for (; i < html.length; i++) {\n    const ch = html[i];\n    if (esc) { esc = false; continue; }\n    if (ch === '\\\\') { esc = true; continue; }\n    if (ch === '\"') { inStr = !inStr; continue; }\n    if (inStr) continue;\n    if (ch === '{') depth++;\n    else if (ch === '}') { depth--; if (depth === 0) { i++; break; } }\n  }\n  return JSON.parse(html.slice(s, i).replace(/:\\s*undefined/g, ': null'));\n}\n\nfunction collectPhotos(a) {\n  const PREFIX = 'https://i1.static.athome.eu/images/annonces2/image_';\n  const urls = [];\n  let m = a.media;\n  try { if (typeof m === 'string') m = JSON.parse(m); } catch (e) { m = null; }\n  const items = (m && Array.isArray(m.items)) ? m.items.slice() : [];\n  items.sort((x, y) => ((x && x.order) || 0) - ((y && y.order) || 0));\n  for (const it of items) {\n    if (!it || it.type !== 'photo') continue;\n    const uri = typeof it.uri === 'string' ? it.uri.trim() : '';\n    if (!uri || uri[0] !== '/') continue;\n    urls.push(PREFIX + uri);\n    if (urls.length >= 6) break;\n  }\n  return urls;\n}\n\nfunction collectGeo(a) {\n  const g = a.geo || {};\n  const lat = g.lat != null && g.lat !== '' ? Number(g.lat) : null;\n  const lng = g.lon != null && g.lon !== '' ? Number(g.lon) : null;\n  return {\n    lat: Number.isFinite(lat) ? lat : null,\n    lng: Number.isFinite(lng) ? lng : null,\n    address: (g.streetAddress || '').toString().trim()\n  };\n}\n\nfunction collectDescription(a) {\n  const d = a.description;\n  return (typeof d === 'string' ? d : '').slice(0, 2000);\n}\n\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\n\nconst MAX_PAGES = Number(c.maxPages) || 50;\nconst DELAY_MS = 700;\n\nconst headers = {\n  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',\n  'Accept-Language': 'fr-FR,fr;q=0.9',\n  'Accept': 'text/html,application/xhtml+xml',\n  'Referer': 'https://www.athome.lu/'\n};\n\nconst allBiens = [];\nconst stats = { totalAtHome: 0, pagesFetched: 0, pagesPlanned: 0, countSold: 0, countNew: 0, capped: false, sold: [] };\n\nlet page = 1;\nwhile (page <= MAX_PAGES) {\n  const html = await this.helpers.httpRequest({\n    method: 'GET',\n    url: buildUrl(page),\n    headers,\n    returnFullResponse: false,\n    encoding: 'utf8',\n    json: false,\n  });\n\n  const state = extractState(html);\n  const list = (state.search && state.search.list) || [];\n  const listings = (state.search && state.search.listings) || [];\n  const totalAtHome = (state.search && state.search.total) || 0;\n  const permById = {};\n  for (const x of listings) permById[x.id] = x.permalink && x.permalink.fr;\n\n  if (page === 1) {\n    stats.totalAtHome = totalAtHome;\n    const need = Math.ceil(totalAtHome / 20);\n    stats.pagesPlanned = Math.min(need, MAX_PAGES);\n    if (need > MAX_PAGES) stats.capped = true;\n  }\n\n  for (const a of list) {\n    if (a.isSoldProperty) {\n      stats.countSold++;\n      stats.sold.push({ id: String(a.id), price: a.price, commune: (a.geo && a.geo.cityName) || '', surface: a.propertySurface });\n      continue;\n    }\n    if (!c.includeNew && a.isNewBuild) { stats.countNew++; continue; }\n    const geo = collectGeo(a);\n    allBiens.push({\n      id: String(a.id),\n      price: a.price,\n      surface: a.propertySurface,\n      commune: (a.geo && a.geo.cityName) || '',\n      rooms: a.bedroomsCount,\n      title: (a.title || '').toString(),\n      url: 'https://www.athome.lu' + (permById[a.id] || ('/vente/appartement/luxembourg/id-' + a.id + '.html')),\n      photos: collectPhotos(a),\n      lat: geo.lat,\n      lng: geo.lng,\n      address: geo.address,\n      description: collectDescription(a)\n    });\n  }\n\n  stats.pagesFetched = page;\n  if (list.length < 20 || page >= stats.pagesPlanned) break;\n  page++;\n  await sleep(DELAY_MS);\n}\n\nconst ctx = {\n  runId: b.runId,\n  ingestUrl: b.ingestUrl,\n  ingestSecret: b.ingestSecret,\n  cpeClasses: c.cpeClasses || [],\n};\n\nif (allBiens.length === 0) {\n  return [{ json: { _empty: true, ...ctx, _stats: stats } }];\n}\n\nreturn allBiens.map(bien => ({ json: { ...ctx, ...bien, _stats: stats } }));\n" } },
+  output: [{ id: '1', price: 0, surface: 0, url: 'https://x' }]
+});
+
+const getFicheDetail = node({
+  type: 'n8n-nodes-base.httpRequest',
+  version: 4.4,
+  config: {
+    name: 'GET fiche detail',
+    parameters: {
+      method: 'GET',
+      url: expr('{{ $json.url }}'),
+      sendHeaders: true,
+      specifyHeaders: 'keypair',
+      headerParameters: { parameters: [
+        { name: 'User-Agent', value: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" },
+        { name: 'Accept-Language', value: 'fr-FR,fr;q=0.9' }
+      ] },
+      options: { batching: { batch: { batchSize: 1, batchInterval: 2500 } }, response: { response: { responseFormat: 'text' } } }
+    }
+  },
+  output: [{ data: '<html></html>' }]
+});
+
+const extraitCpe = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: { name: 'Extrait CPE + filtre', parameters: { mode: 'runOnceForEachItem', language: 'javaScript', jsCode: "if ($json._empty) return $json;\nconst meta = $('Scrape SRP (toutes pages)').item.json;\nconst html = $json.data || $json.body || '';\nconst norm = html.replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ');\nconst m = norm.match(/Classe\\s+[\u00e9e]nerg[\u00e9e]?tique[^A-Za-z]{0,40}?([A-I])\\b/i);\nconst cpe = m ? m[1].toUpperCase() : null;\nconst classes = meta.cpeClasses || [];\nconst noCpeFilter = !classes.length || classes.length >= 9;\nconst keep = noCpeFilter || cpe == null || classes.includes(cpe);\nreturn { ...meta, cpe, _keep: keep };\n" } },
+  output: [{ cpe: 'C', _keep: true }]
+});
+
+const agregeResultats = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: { name: 'Agrege resultats', parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: "const all = $input.all().map(i => i.json);\nconst first = $('Scrape SRP (toutes pages)').first().json;\nconst stats = first._stats || null;\nconst kept = all.filter(x => x._keep);\nconst listings = kept.map(({ runId, ingestUrl, ingestSecret, cpeClasses, _keep, _empty, _stats, ...rest }) => rest);\nreturn [{\n  json: {\n    ingestUrl: first.ingestUrl,\n    runId: first.runId,\n    ingestSecret: first.ingestSecret,\n    listings,\n    stats\n  }\n}];\n" } },
+  output: [{ runId: 1, listings: [], stats: {} }]
+});
+
+const postVersApp = node({
+  type: 'n8n-nodes-base.httpRequest',
+  version: 4.4,
+  config: {
+    name: 'POST vers app',
+    parameters: {
+      method: 'POST',
+      url: expr('{{ $json.ingestUrl }}'),
+      sendBody: true,
+      contentType: 'json',
+      specifyBody: 'json',
+      jsonBody: expr('{{ JSON.stringify({ runId: $json.runId, secret: $json.ingestSecret, listings: $json.listings, stats: $json.stats }) }}')
+    }
+  },
+  output: [{ ok: true }]
+});
+
+export default workflow('vesper-athome-scraper', 'Vesper — atHome scraper')
+  .add(webhookFromApp)
+  .to(scrapeSrp)
+  .to(getFicheDetail)
+  .to(extraitCpe)
+  .to(agregeResultats)
+  .to(postVersApp);

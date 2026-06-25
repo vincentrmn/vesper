@@ -2,8 +2,9 @@
 
 Contexte persistant du projet. Lu au début de chaque session Claude Code.
 Brouillon initial rédigé le 16/06/2026 depuis la session BBIscout (fork du moteur).
+Fork du code + scraper n8n dédié réalisés le 25/06/2026 (voir §11 — État d'implémentation).
 
-> **Nom de travail : Sextant.** Alternatives : Aplomb, Étalon, Vitruve. (À trancher par Vincent.)
+> **Nom acté : Vesper** (repo `vincentrmn/Vesper`, titre de l'app « Vesper »). Le doc emploie encore « Sextant » par endroits (nom de travail historique) — sans incidence sur le code.
 
 ---
 
@@ -128,3 +129,26 @@ Pour une recherche (commune + critères), produire :
 ## 10. La question à se reposer en permanence
 
 *« Est-ce que ce chiffre, je le mettrais devant le client de Shawna ? »* Si la donnée est trop sale ou trop sparse pour ça → afficher la fourchette + la confiance basse, pas un faux prix précis. **La crédibilité de l'outil tient à ça.**
+
+## 11. État d'implémentation (25/06/2026)
+
+Le fork du code est fait et **buildable** (`npm run build` passe). Détail complet dans `docs/fork-status.md` et déploiement dans `docs/DEPLOY.md`.
+
+**Code (repo, branche `main` + `claude/relaxed-albattani-wrid7z`, synchronisées) :**
+- Plomberie reprise de scout puis dépouillée : `db.ts` (schéma réduit : configs · runs · zones · listings · listing_snapshots · market_samples · observatoire_data), `dedup.ts` (tel quel), `observatoire.ts` (tel quel), `zones.ts` (geo + `quartierSlug`), `types.ts` (`Listing` + `Comparable`), `trigger.ts` (atHome + Immotop).
+- `/api/ingest` : upsert + snapshots + **dédup cross-source au niveau du run** → comparables (€/m²). Pas de scoring/verdict/findings/proposals.
+- UI : dashboard, formulaire de recherche, page run = **tableau de comparables + distribution €/m²** (min/P25/médiane/P75/max). CSS maison de scout réutilisée.
+- Amorce géo : **seul Lux-Ville** (26 quartiers) est seedé. Le **seed national** (§4) reste à faire (le gros morceau ; méthode : étude + test avant de coder).
+
+**Scraper n8n — PROPRE à Vesper (ne PAS réutiliser celui de BBIscout) :**
+- Workflow **`Vesper — atHome scraper`**, id **`FvcGpXuWSlMbNDEf`**, webhook path **`vesper-search`**, sur la même instance n8n (`n8n-production-8929d.up.railway.app`). Publié et **testé en isolation** (scrape réel OK).
+- C'est un clone dédié du scraper atHome (mêmes nodes : Scrape SRP paginé → fiche détail CPE → filtre → agrège → POST `/api/ingest`). Contrat de sortie `{runId, secret, listings, stats}` = ce qu'attend `/api/ingest`.
+- `N8N_WEBHOOK_URL` doit pointer sur `https://n8n-production-8929d.up.railway.app/webhook/vesper-search`.
+- Scraper **Immotop** : pas encore créé (à faire, api-next `search-list/listings`, cf. `docs/immotop-source2-etude.md`), variable `N8N_IMMOTOP_WEBHOOK_URL` vide pour l'instant → Immotop ignoré silencieusement.
+
+**Déploiement Railway — BLOQUÉ par la politique réseau :**
+- Token API Railway câblé dans la config MCP locale (`railway mcp`, env `RAILWAY_API_TOKEN`).
+- ⚠️ **Mais l'egress proxy de l'environnement Claude refuse `backboard.railway.com` (403 policy denial).** Donc même MCP branché + token valide, l'API Railway est injoignable. Un simple redémarrage de session NE lève PAS ce blocage : il faut **créer l'environnement Claude Code avec une politique réseau autorisant Railway** (sinon le déploiement piloté par Claude échoue ; reste l'option manuelle de `docs/DEPLOY.md`).
+- Variables cible (Railway, service Next) : `DATABASE_URL`, `INGEST_SECRET`, `N8N_WEBHOOK_URL` (→ `vesper-search`), `PUBLIC_APP_URL` (après 1er deploy), `PGSSL` vide. `N8N_IMMOTOP_WEBHOOK_URL` plus tard.
+
+**Prochaines étapes (ordre) :** 1) débloquer Railway (politique réseau) ou déployer à la main → URL testable ; 2) seed géo national ; 3) scraper Immotop ; 4) Phase 2 couche Observatoire (décote affiché→signé + fourchette + confiance).
