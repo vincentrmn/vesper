@@ -272,3 +272,32 @@ export async function getCommuneSigned(slug: string): Promise<{ signed: number; 
   if (!rows.length) return null;
   return { signed: Number(rows[0].value_eur_m2), period: rows[0].period };
 }
+
+/** Diagnostic : ce que l'app obtient réellement du dataset (download + read). */
+export async function debugObservatoire(): Promise<any> {
+  try {
+    const resources = await resolveResources();
+    const xlsxRes = resources.filter(
+      (r: any) => /xlsx?/i.test(r?.format || "") || /\.xlsx?(\?|$)/i.test(r?.url || "")
+    );
+    xlsxRes.sort((a: any, b: any) => new Date(b.last_modified || 0).getTime() - new Date(a.last_modified || 0).getTime());
+    if (!xlsxRes.length) return { stage: "resources", count: resources.length, xls: 0 };
+    const res = xlsxRes[0];
+    const dl = await fetch(res.url);
+    if (!dl.ok) return { stage: "download", url: res.url, status: dl.status };
+    const buf = Buffer.from(await dl.arrayBuffer());
+    const wb = XLSX.read(buf, { type: "buffer" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, blankrows: false });
+    return {
+      stage: "parsed",
+      url: res.url,
+      bytes: buf.length,
+      sheetNames: wb.SheetNames,
+      rowCount: rows.length,
+      first8: rows.slice(0, 8).map((r) => (r || []).slice(0, 5)),
+    };
+  } catch (e: any) {
+    return { stage: "exception", error: e?.message || String(e) };
+  }
+}
