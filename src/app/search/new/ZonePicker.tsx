@@ -46,11 +46,63 @@ export default function ZonePicker({ value, onChange }: Props) {
   if (tree.length === 0)
     return <p className="zone-picker__error">Aucune zone configurée.</p>;
 
+  return <ZonePickerInner tree={tree} value={value} onChange={onChange} />;
+}
+
+const norm = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+function ZonePickerInner({
+  tree,
+  value,
+  onChange,
+}: {
+  tree: ZoneTree[];
+  value: string[];
+  onChange: (codes: string[]) => void;
+}) {
+  const [q, setQ] = useState("");
+  const nq = norm(q.trim());
+
+  // Filtre : commune dont le label matche (commune entière) OU dont une localité
+  // matche (on ne montre alors que les localités correspondantes). Sans recherche,
+  // on affiche tout (cap à 80 communes pour rester fluide).
+  let cities: ZoneTree[];
+  if (!nq) {
+    cities = tree.slice(0, 80);
+  } else {
+    cities = tree
+      .map((city) => {
+        if (norm(city.label).includes(nq)) return city;
+        const qs = city.quartiers.filter((x) => norm(x.label).includes(nq));
+        return qs.length ? { ...city, quartiers: qs } : null;
+      })
+      .filter((c): c is ZoneTree => !!c)
+      .slice(0, 60);
+  }
+
   return (
-    <div className="zone-picker">
-      {tree.map((city) => (
-        <CityPicker key={city.id} city={city} value={value} onChange={onChange} />
-      ))}
+    <div>
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Filtrer : commune ou localité (ex : Esch, Bertrange, Hassel…)"
+        style={{ marginBottom: 10 }}
+      />
+      {!nq && tree.length > 80 && (
+        <p className="zone-picker__hint" style={{ marginTop: 0 }}>
+          {tree.length} communes seedées — tape pour filtrer (80 premières affichées).
+        </p>
+      )}
+      <div className="zone-picker">
+        {cities.map((city) => (
+          <CityPicker key={city.id} city={city} value={value} onChange={onChange} />
+        ))}
+        {nq && cities.length === 0 && (
+          <p className="zone-picker__error">Aucune zone ne correspond à « {q} ».</p>
+        )}
+      </div>
     </div>
   );
 }
