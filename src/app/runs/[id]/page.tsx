@@ -100,7 +100,9 @@ function confColor(label?: string): string {
 /** Carte « Analyse » : le chemin Affiché → décote → Signé en clair, puis
  *  distribution, moyennes, et deux encarts explicatifs (lecture + confiance). */
 function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: Comparable[]; excludedCount: number }) {
-  const [showDetail, setShowDetail] = useState(true);
+  // Replié par défaut : la carte mène avec le résultat + les indices ; la
+  // méthode et le détail de la confiance s'ouvrent à la demande.
+  const [showMethod, setShowMethod] = useState(false);
 
   const sv = comps.map((c) => c.surface).filter((v): v is number => typeof v === "number" && v > 0);
   const pv = comps.map((c) => c.price).filter((v): v is number => typeof v === "number" && v > 0);
@@ -125,8 +127,8 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
             <span className="ds-dot" style={{ background: confColor(est.confLabel) }} /> Confiance {est.confLabel} ({est.confidence}/100)
           </span>
         )}
-        <button className="ds-btn ds-btn--ghost ds-btn--sm" onClick={() => setShowDetail((v) => !v)}>
-          {showDetail ? "▾ Masquer le détail" : "▸ Voir le détail"}
+        <button className="ds-btn ds-btn--ghost ds-btn--sm" onClick={() => setShowMethod((v) => !v)}>
+          {showMethod ? "▾ Méthode & confiance" : "▸ Méthode & confiance"}
         </button>
       </div>
     </div>
@@ -181,11 +183,10 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
         )}
       </div>
 
-      {showDetail && (
-        <>
+      {/* Niveau 2 — Indices de marché (distribution + moyennes), toujours visibles. */}
           {/* Distribution des €/m² affichés. */}
-          <div style={{ marginTop: 24 }}>
-            <div className="muted analyse-k" style={{ marginBottom: 18 }}>
+          <div style={{ marginTop: 22 }}>
+            <div className="analyse-k" style={{ marginBottom: 18 }}>
               Distribution des €/m² affichés ({mv.length} comparable{mv.length > 1 ? "s" : ""} retenu{mv.length > 1 ? "s" : ""}{excludedCount ? `, ${excludedCount} exclu${excludedCount > 1 ? "s" : ""}` : ""})
             </div>
             <div className="dist-bar">
@@ -207,7 +208,7 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
           </div>
 
           {/* Moyennes. */}
-          <div className="grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 34 }}>
+          <div className="grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 48 }}>
             {[
               { label: "Surface moyenne", v: avg(sv), suf: " m²", eur: false },
               { label: "Prix moyen", v: avg(pv), suf: "", eur: true },
@@ -220,6 +221,9 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
             ))}
           </div>
 
+          {/* Niveau 3 — Méthode & confiance (repliées par défaut). */}
+          {showMethod && (
+            <>
           {/* Comment lire — vraies phrases. */}
           <div className="analyse-note">
             <div className="analyse-note-h">Comment lire cette estimation</div>
