@@ -1,0 +1,22 @@
+# Dependencies
+/node_modules
+
+# Next.js build
+/.next
+/out
+
+# Production
+/build
+
+# Env
+.env*.local
+
+# TypeScript
+next-env.d.ts
+
+# Lockfile (non suivi dans ce repo, généré au build)
+package-lock.json
+
+# Misc
+.DS_Store
+*.log

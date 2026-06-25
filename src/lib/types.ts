@@ -1,0 +1,115 @@
+// ---------------------------------------------------------------------------
+// Bien brut (annonce). Forké de BBIscout (ex scoring.ts), sans le scoring flip.
+// ---------------------------------------------------------------------------
+export type Listing = {
+  id: string;
+  url: string;
+  title?: string;
+  price: number; // prix affiché
+  surface: number; // m²
+  commune?: string; // ex: "Luxembourg-Limpertsberg" — sert à résoudre la zone
+  cpe?: string; // classe énergétique (A..I) — atHome uniquement
+  rooms?: number;
+  /** URLs des photos de l'annonce (extraites par n8n, max 6). */
+  photos?: string[];
+  /** Coordonnées précises + adresse (carte / dédup). */
+  lat?: number | null;
+  lng?: number | null;
+  address?: string | null;
+  /** Description de l'annonce (relevé de marché). */
+  description?: string | null;
+  /** État de rénovation (immotop : ga4Condition ; atHome : absent). */
+  etat?: "a_renover" | "habitable" | "renove" | null;
+};
+
+/**
+ * Comparable = bien enrichi du €/m² et de sa provenance. C'est ce qui est
+ * stocké dans runs.results et affiché dans le tableau de comparables.
+ *   source = 'both' => bien retrouvé sur les 2 portails (dédup géo).
+ *   altUrl = lien vers l'annonce de l'autre source.
+ */
+export type Comparable = Listing & {
+  priceM2: number | null;
+  source: "athome" | "immotop" | "both";
+  altUrl?: string;
+  /** Variation vs dernière vue (négatif = baisse). null = première apparition. */
+  priceDelta?: number | null;
+};
+
+// ---------------------------------------------------------------------------
+// Critères de recherche (ce qu'atHome/Immotop savent filtrer).
+// ---------------------------------------------------------------------------
+export type Criteria = {
+  propertyType: "apartment" | "house" | "both";
+  /** Codes loc atHome sélectionnés via ZonePicker.
+   *  Ex : ["L9-luxembourg"] (toute la zone) ou ["L10-belair","L10-merl"]. */
+  locCodes?: string[];
+  /** Tokens q atHome alignés sur locCodes (calculés côté serveur depuis `zones`). */
+  qTokens?: string[];
+  /** Inclure les programmes neufs en construction. false (défaut) => exclus. */
+  includeNew?: boolean;
+  surfaceMin?: number;
+  surfaceMax?: number;
+  priceMin?: number;
+  priceMax?: number;
+  /** Classes CPE à conserver (atHome). [] (défaut) => aucun filtre CPE. */
+  cpeClasses: string[];
+  /** Quand on filtre par classes CPE, conserver AUSSI les biens sans note (atHome). */
+  includeNoCpe?: boolean;
+  /** Sources de scraping. Absent/vide => ['athome']. 'immotop' tenté si webhook configuré. */
+  sources?: ("athome" | "immotop")[];
+  /** Filtre d'état de rénovation (immotop uniquement). Vide => pas de filtre. */
+  conditions?: ("a_renover" | "habitable" | "renove")[];
+  /** Bande énergie immotop (cumulative « et mieux »). Absent => pas de filtre. */
+  immotopEnergy?: "excellente" | "moyenne" | "basse";
+};
+
+export type ConfigRow = {
+  id: number;
+  name: string;
+  criteria: Criteria;
+  created_at: string;
+  updated_at: string;
+};
+
+export const DEFAULT_CRITERIA: Criteria = {
+  propertyType: "apartment",
+  locCodes: ["L9-luxembourg"],
+  includeNew: false,
+  surfaceMax: 50,
+  cpeClasses: [],
+};
+
+// ---------------------------------------------------------------------------
+// Zones — sélection de localisation. announced_eur_per_m2 = réf. Observatoire.
+// ---------------------------------------------------------------------------
+export type Zone = {
+  id: string;
+  parent_id: string | null;
+  label: string;
+  loc_code: string;
+  /** Token atHome nécessaire pour que `loc=` soit respecté. */
+  q_code: string | null;
+  /** Réf. Observatoire (prix AFFICHÉ €/m²) de la zone. null si inconnue. */
+  announced_eur_per_m2: number | null;
+  sort_order: number;
+};
+
+export type ZoneTree = Zone & {
+  quartiers: Zone[];
+};
+
+// ---------------------------------------------------------------------------
+// Stats d'un run — persistées dans runs.stats (JSONB).
+// ---------------------------------------------------------------------------
+export type RunStats = {
+  totalAtHome: number;
+  pagesFetched: number;
+  pagesPlanned: number;
+  countSold: number;
+  countNew: number;
+  capped: boolean;
+  /** Réconciliation des exclusions (renseignées par /api/ingest). */
+  countReceived?: number;
+  countIncomplete?: number;
+};
