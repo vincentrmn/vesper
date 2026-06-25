@@ -153,3 +153,116 @@ export async function getDecote(): Promise<Decote> {
   const d = Math.max(0.04, Math.min(0.12, 1 - signe / aff));
   return { decote: d, source: "computed", affiche_median: aff, signe, period: o.period, fetched_at: o.fetched_at };
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2 — Observatoire PAR COMMUNE (prix de vente SIGNÉ / notarial).
+// Le même dataset data.public.lu liste toutes les communes : on parse chaque
+// ligne commune et on stocke value sous dataset `commune:<slug>`.
+// ---------------------------------------------------------------------------
+
+function slugCommune(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/^luxembourg[-\s]+/, "")
+    .replace(/['\s/.]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function parseAllCommunes(wb: XLSX.WorkBook): { commune: string; value: number }[] {
+  const out: { commune: string; value: number }[] = [];
+  const seen = new Set<string>();
+  for (const name of wb.SheetNames) {
+    const ws = wb.Sheets[name];
+    const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, blankrows: false });
+    if (!rows.length) continue;
+    let col = -1;
+    for (let r = 0; r < Math.min(rows.length, 8); r++) {
+      const row = rows[r] || [];
+      for (let cI = 0; cI < row.length; cI++) {
+        const cell = String(row[cI] ?? "").toLowerCase();
+        if (/existant|ancien/.test(cell) && /(moyen|m²|m2|prix)/.test(cell)) {
+          col = cI;
+          break;
+        }
+      }
+      if (col >= 0) break;
+    }
+    if (col < 0) continue;
+    for (const row of rows) {
+      const label = String(row[0] ?? "").trim();
+      if (!label || /total|commune|source|moyenne|pays|canton/i.test(label)) continue;
+      const slug = slugCommune(label);
+      if (!slug || seen.has(slug)) continue;
+      const raw = row[col];
+      const value =
+        typeof raw === "number"
+          ? raw
+          : Number(String(raw).replace(/[^\d.,]/g, "").replace(",", "."));
+      if (Number.isFinite(value) && value > 1000) {
+        seen.add(slug);
+        out.push({ commune: slug, value: Math.round(value) });
+      }
+    }
+    if (out.length) break;
+  }
+  return out;
+}
+
+/** Télécharge le xlsx et stocke le prix SIGNÉ par commune (dataset `commune:<slug>`). */
+export async function fetchActesAllCommunes(): Promise<{ updated: boolean; communes?: number; period?: string; error?: string }> {
+  try {
+    const meta = await fetch(DATASET_URL, { headers: { Accept: "application/json" } });
+    if (!meta.ok) return { updated: false, error: `dataset ${meta.status}` };
+    const j: any = await meta.json();
+    const resources: any[] = Array.isArray(j?.resources) ? j.resources : [];
+    const xlsxRes = resources.filter(
+      (r) => /xlsx/i.test(r?.format || "") || /\.xlsx(\?|$)/i.test(r?.url || "")
+    );
+    if (!xlsxRes.length) return { updated: false, error: "aucune ressource xlsx" };
+    xlsxRes.sort((a, b) => new Date(b.last_modified || 0).getTime() - new Date(a.last_modified || 0).getTime());
+    const res = xlsxRes[0];
+    const resourceModified = res.last_modified ? new Date(res.last_modified) : null;
+    const period =
+      (String(res.title || "").match(/20\d{2}(?:[-\sTQ]*[1-4])?/) || [])[0] ||
+      String(new Date().getFullYear());
+
+    const dl = await fetch(res.url);
+    if (!dl.ok) return { updated: false, error: `download ${dl.status}` };
+    const buf = Buffer.from(await dl.arrayBuffer());
+    const wb = XLSX.read(buf, { type: "buffer" });
+    const communes = parseAllCommunes(wb);
+    if (!communes.length) return { updated: false, error: "aucune commune parsée" };
+
+    for (const c of communes) {
+      await pool.query(
+        `INSERT INTO observatoire_data (dataset, period, value_eur_m2, resource_modified, fetched_at)
+         VALUES ($1, $2, $3, $4, now())
+         ON CONFLICT (dataset, period) DO UPDATE SET
+           value_eur_m2 = EXCLUDED.value_eur_m2,
+           resource_modified = EXCLUDED.resource_modified,
+           fetched_at = now()`,
+        [`commune:${c.commune}`, period, c.value, resourceModified]
+      );
+    }
+    return { updated: true, communes: communes.length, period };
+  } catch (e: any) {
+    console.error("[observatoire] fetchActesAllCommunes", e);
+    return { updated: false, error: e?.message || "erreur" };
+  }
+}
+
+/** Prix SIGNÉ (notarial) le plus récent pour une commune (slug). null si inconnu. */
+export async function getCommuneSigned(slug: string): Promise<{ signed: number; period: string } | null> {
+  if (!slug) return null;
+  const { rows } = await pool.query<{ value_eur_m2: string; period: string }>(
+    `SELECT value_eur_m2, period FROM observatoire_data
+     WHERE dataset = $1 AND value_eur_m2 IS NOT NULL ORDER BY period DESC LIMIT 1`,
+    [`commune:${slug}`]
+  );
+  if (!rows.length) return null;
+  return { signed: Number(rows[0].value_eur_m2), period: rows[0].period };
+}

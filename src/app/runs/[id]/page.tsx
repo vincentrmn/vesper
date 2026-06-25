@@ -93,10 +93,82 @@ function Distribution({ comps }: { comps: Comparable[] }) {
   );
 }
 
+type Estimate = {
+  enough: boolean;
+  nComps: number;
+  commune?: string | null;
+  message?: string;
+  displayed?: { min: number; p25: number; median: number; p75: number; max: number };
+  signedRef?: { signed: number; period: string } | null;
+  decotePct?: number;
+  decoteSource?: "commune" | "global";
+  decoteReason?: string | null;
+  estimate?: { low: number; median: number; high: number };
+  confidence?: number;
+  confLabel?: string;
+};
+
+function MarketReading({ est }: { est: Estimate | null }) {
+  if (!est) return null;
+  if (!est.enough) {
+    return (
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="muted" style={{ fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+          Lecture marché {est.commune ? `— ${est.commune}` : ""}
+        </div>
+        <p className="muted" style={{ margin: 0, fontStyle: "italic", fontSize: "0.85rem" }}>{est.message}</p>
+      </div>
+    );
+  }
+  const e = est.estimate!;
+  return (
+    <div className="card" style={{ marginBottom: 16, borderLeft: "3px solid var(--green)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+        <div className="muted" style={{ fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          Lecture marché {est.commune ? `— ${est.commune}` : ""}
+        </div>
+        <span className={`badge`} title="Note de confiance" style={{ background: "var(--green-soft)", color: "var(--green-ink)" }}>
+          Confiance {est.confLabel} ({est.confidence})
+        </span>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 24, marginTop: 12, alignItems: "flex-end" }}>
+        <div>
+          <div className="muted" style={{ fontSize: "0.72rem", textTransform: "uppercase" }}>Affiché médian</div>
+          <div className="mono" style={{ fontSize: "1.05rem", fontWeight: 600 }}>{eur(est.displayed!.median)}/m²</div>
+        </div>
+        <div style={{ fontSize: "1.3rem", color: "var(--ink-soft)" }}>→</div>
+        <div>
+          <div className="muted" style={{ fontSize: "0.72rem", textTransform: "uppercase" }}>
+            Estimation signée (fourchette)
+          </div>
+          <div className="mono" style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--green-ink)" }}>
+            {eur(e.low)} – {eur(e.high)}/m² <span style={{ fontWeight: 400, color: "var(--ink-soft)" }}>(méd. {eur(e.median)})</span>
+          </div>
+        </div>
+        <div>
+          <div className="muted" style={{ fontSize: "0.72rem", textTransform: "uppercase" }}>Décote affiché→signé</div>
+          <div className="mono" style={{ fontSize: "1.05rem", fontWeight: 600 }}>−{est.decotePct} %</div>
+        </div>
+      </div>
+
+      <p className="muted" style={{ fontSize: "0.78rem", margin: "12px 0 0", lineHeight: 1.5 }}>
+        {est.signedRef ? (
+          <>Réf. Observatoire (actes notariés, {est.commune}) : <strong>{eur(est.signedRef.signed)}/m²</strong> signé · période {est.signedRef.period}. Décote mesurée sur la commune.</>
+        ) : (
+          <>Pas de prix signé Observatoire pour cette commune : décote <strong>globale</strong> appliquée ({est.decoteReason || "fallback prudent"}). Fourchette plus indicative.</>
+        )}{" "}
+        Prix affichés (annonces) → la valeur signée se lit dans les actes. C'est un faisceau d'indices, pas un prix ferme.
+      </p>
+    </div>
+  );
+}
+
 export default function RunPage({ params }: { params: { id: string } }) {
   const [run, setRun] = useState<Run | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [estimate, setEstimate] = useState<Estimate | null>(null);
 
   useEffect(() => {
     let stop = false;
@@ -112,6 +184,18 @@ export default function RunPage({ params }: { params: { id: string } }) {
       stop = true;
     };
   }, [params.id]);
+
+  // Lecture marché : (re)calculée quand le run est prêt et à chaque inclusion/exclusion.
+  useEffect(() => {
+    if (run?.status !== "done") return;
+    const t = setTimeout(() => {
+      fetch(`/api/estimate?run=${params.id}`)
+        .then((r) => r.json())
+        .then((e) => setEstimate(e))
+        .catch(() => {});
+    }, 350);
+    return () => clearTimeout(t);
+  }, [params.id, run?.status, excluded]);
 
   const stats = run?.stats;
   const toggleOpen = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
@@ -193,6 +277,8 @@ export default function RunPage({ params }: { params: { id: string } }) {
               </div>
             );
           })()}
+
+          <MarketReading est={estimate} />
 
           {results.length > 0 && (
             <div className="card" style={{ marginBottom: 16 }}>
