@@ -146,9 +146,12 @@ Le fork du code est fait et **buildable** (`npm run build` passe). Détail compl
 - `N8N_WEBHOOK_URL` doit pointer sur `https://n8n-production-8929d.up.railway.app/webhook/vesper-search`.
 - Scraper **Immotop** : pas encore créé (à faire, api-next `search-list/listings`, cf. `docs/immotop-source2-etude.md`), variable `N8N_IMMOTOP_WEBHOOK_URL` vide pour l'instant → Immotop ignoré silencieusement.
 
-**Déploiement Railway — BLOQUÉ par la politique réseau :**
-- Token API Railway câblé dans la config MCP locale (`railway mcp`, env `RAILWAY_API_TOKEN`).
-- ⚠️ **Mais l'egress proxy de l'environnement Claude refuse `backboard.railway.com` (403 policy denial).** Donc même MCP branché + token valide, l'API Railway est injoignable. Un simple redémarrage de session NE lève PAS ce blocage : il faut **créer l'environnement Claude Code avec une politique réseau autorisant Railway** (sinon le déploiement piloté par Claude échoue ; reste l'option manuelle de `docs/DEPLOY.md`).
-- Variables cible (Railway, service Next) : `DATABASE_URL`, `INGEST_SECRET`, `N8N_WEBHOOK_URL` (→ `vesper-search`), `PUBLIC_APP_URL` (après 1er deploy), `PGSSL` vide. `N8N_IMMOTOP_WEBHOOK_URL` plus tard.
+**Déploiement Railway — FAIT (live le 25/06/2026) :**
+- **URL : https://vesper-production-d0b8.up.railway.app** — testée end-to-end (recherche → scrape → ingest → comparables OK, run #1 = 18 comps).
+- Projet `Vesper` (`eb8ed587-8da4-4835-8dde-4c5a55a03176`), workspace perso (`14f4e15d-…`), env `production` (`d176e079-…`).
+- Service **`vesper`** (Next, depuis GitHub `vincentrmn/Vesper` branche `main`, auto-deploy) + domaine ci-dessus.
+- Service **`Postgres`** (image `ghcr.io/railwayapp-templates/postgres-ssl:16`) + volume `/var/lib/postgresql/data`. `DATABASE_URL` du service référencé par l'app via `${{Postgres.DATABASE_URL}}`.
+- Variables app posées : `DATABASE_URL`, `INGEST_SECRET`, `N8N_WEBHOOK_URL` (→ `vesper-search`), `PGSSL=require` (image SSL), `PUBLIC_APP_URL`. `N8N_IMMOTOP_WEBHOOK_URL` non posée (Immotop off).
+- ⚠️ Le pilotage Railway depuis Claude n'a marché qu'**en GraphQL direct** (`backboard.railway.com`, token Bearer). La **CLI et le MCP Railway** rejettent ce token (workspace token, user-scoped → `me` refusé). Et il faut que l'environnement Claude **autorise l'egress vers `backboard.railway.com`** (sinon 403 policy denial).
 
-**Prochaines étapes (ordre) :** 1) débloquer Railway (politique réseau) ou déployer à la main → URL testable ; 2) seed géo national ; 3) scraper Immotop ; 4) Phase 2 couche Observatoire (décote affiché→signé + fourchette + confiance).
+**Prochaines étapes (ordre) :** 1) **garde-fou comparables aberrants** (run #1 a sorti un « 1 m² à 525 000 €/m² » : plancher surface ~10–15 m² + plafond €/m² vs réf Observatoire) — cohérent avec §0/§5 ; 2) seed géo national (§4) ; 3) scraper Immotop ; 4) Phase 2 couche Observatoire (décote affiché→signé + fourchette + confiance).

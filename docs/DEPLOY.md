@@ -1,6 +1,8 @@
 # Déploiement Vesper — Railway + n8n
 
-> Je (Claude) **n'ai pas accès à Railway** depuis la session — la création du projet est manuelle (one-shot). Tout le reste (code, schéma DB auto, scraper n8n) est prêt. Suis les étapes dans l'ordre.
+> ✅ **DÉPLOYÉ (25/06/2026) : https://vesper-production-d0b8.up.railway.app** — pipeline testé end-to-end (recherche → scrape `vesper-search` → ingest → comparables). Projet `Vesper` sur Railway (service `vesper` + `Postgres`). Le reste de ce doc est la référence pour re-déployer / dépanner.
+>
+> Notes de pilotage : la CLI/MCP Railway rejettent le token (workspace token, user-scoped). Le déploiement a été fait **en GraphQL direct** (`backboard.railway.com`, `Authorization: Bearer <token>`) — et l'environnement Claude doit autoriser l'egress vers `backboard.railway.com`.
 
 ## 1. Postgres + service Next (Railway)
 
