@@ -82,6 +82,32 @@ export function isSameProperty(c: DedupTarget, t: DedupTarget): boolean {
   return false;
 }
 
+/**
+ * True si `a` et `b` sont la MÊME MAISON re-listée sur la MÊME source. Réservé
+ * aux maisons (les appartements ont des lots identiques légitimes → jamais de
+ * fusion intra-source). Critère SERRÉ pour ne pas fusionner deux maisons
+ * distinctes (vu en prod : 1,10 M€/165 m² ≠ 1,09 M€/167 m²) :
+ *   prix quasi EXACT (±0,5 %, un re-listing garde le prix du vendeur) ET soit
+ *   - surface quasi exacte (±1 m²)  → marche pour les 2 sources ; OU
+ *   - même emplacement (<60 m) quand la géo est fiable (`geoTrust`, = atHome qui
+ *     géocode à l'adresse). On NE fait PAS la branche géo pour immotop, qui place
+ *     plusieurs maisons au centre de la localité (coords partagées → faux doublons).
+ * Le cas atHome surface-divergente (même maison listée 350 puis 450 m²,
+ * habitable vs totale, même prix et mêmes coords) est couvert par la branche géo.
+ */
+export function isSameHouse(a: DedupTarget, b: DedupTarget, geoTrust = false): boolean {
+  if (a.price == null || b.price == null) return false;
+  const dP = Math.abs(a.price - b.price) / Math.max(a.price, b.price);
+  if (dP > 0.005) return false;
+  const dS = a.surface != null && b.surface != null ? Math.abs(a.surface - b.surface) : Infinity;
+  if (dS <= 1) return true;
+  if (geoTrust) {
+    const dist = haversineMeters(a.lat, a.lng, b.lat, b.lng);
+    if (dist != null && dist <= 60) return true;
+  }
+  return false;
+}
+
 export type DedupResult =
   | { kind: "unique"; match: DedupCandidate }
   | { kind: "none" }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool, ensureSchema } from "@/lib/db";
-import { isSameProperty } from "@/lib/dedup";
+import { isSameProperty, isSameHouse } from "@/lib/dedup";
 import type { Comparable, Listing, RunStats } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -9,22 +9,37 @@ export const runtime = "nodejs";
 // + `incoming` (une seule source). Dédup cross-source (géo<150m + surface±2 +
 // prix±3 %) : un bien retrouvé sur les 2 portails devient source='both' (atHome
 // primaire) avec altUrl vers l'autre annonce. Ambigu (multi-lots) => gardé séparé.
-function mergeRunResults(existing: Comparable[], incoming: Comparable[]): Comparable[] {
+//
+// `houseMode` (recherche de MAISONS) active EN PLUS la dédup INTRA-source : une
+// maison re-listée sur la même source (mêmes prix+surface, ou même prix+emplacement)
+// est fusionnée. Pas pour les appartements (lots identiques légitimes en immeuble).
+function mergeRunResults(existing: Comparable[], incoming: Comparable[], houseMode: boolean): Comparable[] {
   const out = existing.slice();
+  const xy = (c: Comparable) => ({ price: c.price, surface: c.surface, lat: c.lat ?? null, lng: c.lng ?? null });
   for (const inc of incoming) {
     const incSrc = inc.source === "both" ? "athome" : inc.source ?? "athome";
+
+    // Dédup intra-source (maisons) : si un bien de la MÊME source est la même
+    // maison, on ne ré-ajoute pas le doublon (on garde le plus riche en photos).
+    if (houseMode) {
+      const twin = out.findIndex((e) => {
+        const eSrc = e.source === "both" ? "athome" : e.source ?? "athome";
+        return eSrc === incSrc && isSameHouse(xy(e), xy(inc), incSrc === "athome");
+      });
+      if (twin >= 0) {
+        if ((inc.photos?.length ?? 0) > (out[twin].photos?.length ?? 0)) {
+          out[twin] = { ...inc, source: out[twin].source, altUrl: out[twin].altUrl };
+        }
+        continue;
+      }
+    }
+
     const hits: number[] = [];
     for (let i = 0; i < out.length; i++) {
       const e = out[i];
       const eSrc = e.source === "both" ? "athome" : e.source ?? "athome";
-      if (eSrc === incSrc) continue; // même source : pas de fusion (PK gère les re-scrapes)
-      if (
-        isSameProperty(
-          { price: e.price, surface: e.surface, lat: e.lat ?? null, lng: e.lng ?? null },
-          { price: inc.price, surface: inc.surface, lat: inc.lat ?? null, lng: inc.lng ?? null }
-        )
-      )
-        hits.push(i);
+      if (eSrc === incSrc) continue; // même source : pas de fusion cross-source
+      if (isSameProperty(xy(e), xy(inc))) hits.push(i);
     }
     if (hits.length === 1) {
       const i = hits[0];
@@ -94,8 +109,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const runRow = await pool.query(`SELECT id FROM runs WHERE id=$1`, [runId]);
+    const runRow = await pool.query<{ id: number; criteria: any }>(
+      `SELECT r.id, c.criteria FROM runs r LEFT JOIN configs c ON c.id = r.config_id WHERE r.id=$1`,
+      [runId]
+    );
     if (!runRow.rows.length) return NextResponse.json({ error: "run introuvable" }, { status: 404 });
+    // Recherche de maisons → dédup intra-source active (les maisons ne sont pas
+    // des lots multiples : une 2e annonce au même prix = le même bien).
+    const houseMode = runRow.rows[0]?.criteria?.propertyType === "house";
 
     const safe = Array.isArray(listings) ? listings : [];
 
@@ -216,7 +237,7 @@ export async function POST(req: NextRequest) {
       );
       const existing: Comparable[] = Array.isArray(cur.rows[0]?.results) ? cur.rows[0].results : [];
       const pending = cur.rows[0]?.sources_pending ?? null;
-      const merged = mergeRunResults(existing, comparables).sort(
+      const merged = mergeRunResults(existing, comparables, houseMode).sort(
         (a, b) => (b.priceM2 ?? -1) - (a.priceM2 ?? -1)
       );
       const newPending = pending == null ? null : Math.max(pending - 1, 0);

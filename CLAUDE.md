@@ -191,4 +191,5 @@ Le fork du code est fait et **buildable** (`npm run build` passe). Détail compl
 5. **🎨 BBI tools design** — session dédiée (voir `docs/BBI-tools-design.md`) : finaliser les primitives puis migrer les écrans Vesper, puis porter sur BBIscout.
 6. **Garde-fou comparables aberrants** (plancher surface ~10–15 m² + plafond €/m² vs réf Observatoire) — §0/§5.
 7. **Dédup référentielle** immotop↔atHome dans `listings` (aujourd'hui au niveau du run seulement).
+   - **✅ Dédup INTRA-source MAISONS — RÉGLÉ** : une maison re-listée sur la même source (2 annonces) n'était jamais fusionnée (garde-fou « multi-lots » de l'étude, valable seulement pour les appartements). `isSameHouse` (`lib/dedup.ts`) fusionne désormais, en mode `propertyType==='house'` uniquement, deux annonces même-source au **prix quasi exact (±0,5 %)** + **surface ±1 m²** OU (atHome seulement, géo fiable) **<60 m**. Pas la branche géo pour immotop (géocode au centre de localité → coords partagées). Vérifié prod : Rosport run immotop 34→31, run atHome 11→10 (= recherche manuelle). S'applique aux **nouveaux** runs.
 8. **Cron de réimport Observatoire**.
