@@ -130,14 +130,14 @@ export default function DistributionChart({
           );
         })}
 
-        {/* Axes */}
+        {/* Axes — fontFamily "inherit" pour rester sur Inter (visx force Arial par défaut). */}
         <AxisLeft scale={yScale} numTicks={4} hideAxisLine tickStroke={line2}
-          tickLabelProps={() => ({ fill: inkSoft, fontSize: 11, textAnchor: "end", dx: -2, dy: 3 })}
-          label="Nombre de biens" labelProps={{ fill: inkSoft, fontSize: 11, fontWeight: 700, textAnchor: "middle" }} labelOffset={28} />
+          tickLabelProps={() => ({ fill: inkSoft, fontSize: 11, fontFamily: "inherit", textAnchor: "end", dx: -2, dy: 3 })}
+          label="Nombre de biens" labelProps={{ fill: inkSoft, fontSize: 11, fontFamily: "inherit", fontWeight: 700, textAnchor: "middle" }} labelOffset={28} />
         <AxisBottom scale={xScale} top={ih} numTicks={6} stroke={line2} tickStroke={line2}
           tickFormat={(v) => kEur(v as number)}
-          tickLabelProps={() => ({ fill: ink, fontSize: 11, fontWeight: 600, textAnchor: "middle", dy: 2 })}
-          label="Prix affiché (€/m²)" labelProps={{ fill: inkSoft, fontSize: 11, fontWeight: 700, textAnchor: "middle" }} labelOffset={22} />
+          tickLabelProps={() => ({ fill: ink, fontSize: 11, fontFamily: "inherit", fontWeight: 600, textAnchor: "middle", dy: 2 })}
+          label="Prix affiché (€/m²)" labelProps={{ fill: inkSoft, fontSize: 11, fontFamily: "inherit", fontWeight: 700, textAnchor: "middle" }} labelOffset={22} />
 
         {!showCurve && (
           <text x={iw / 2} y={12} textAnchor="middle" fontSize={12} fontStyle="italic" fill={inkSoft}>
