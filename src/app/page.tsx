@@ -114,7 +114,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="wrap ds-scope">
+    <div className="wrap ds-scope ds-scope--lg">
       <div className="topbar">
         <a className="brand-home" href="/" title="Accueil">VESPER</a>
         <span className="page-title" />

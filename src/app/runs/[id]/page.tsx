@@ -1,6 +1,7 @@
 "use client";
 import { Fragment, useEffect, useState } from "react";
 import PhotoStrip from "@/components/PhotoStrip";
+import DistributionChart from "@/components/DistributionChart";
 import { extractKeywords, extractSurfaces } from "@/lib/keywords";
 import { exportPdf, exportExcel, type ExportComparable, type ExportAnalysis } from "@/lib/exportRun";
 import { ExcelIcon, PdfIcon } from "@/components/ExportIcons";
@@ -143,8 +144,6 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
   const d = est.displayed!;
   const e = est.estimate!;
   const cp = est.confParts;
-  const span = d.max - d.min || 1;
-  const pct = (v: number) => Math.max(0, Math.min(100, ((v - d.min) / span) * 100));
 
   return (
     <div className="card analyse" style={{ marginBottom: 16, borderLeft: "3px solid var(--green)" }}>
@@ -184,34 +183,11 @@ function Analyse({ est, comps, excludedCount }: { est: Estimate | null; comps: C
             <div className="analyse-k" style={{ marginBottom: 18 }}>
               Distribution des €/m² affichés ({mv.length} comparable{mv.length > 1 ? "s" : ""} retenu{mv.length > 1 ? "s" : ""}{excludedCount ? `, ${excludedCount} exclu${excludedCount > 1 ? "s" : ""}` : ""})
             </div>
-            <div className="dist-bar">
-              <div className="dist-iqr" style={{ left: `${pct(d.p25)}%`, width: `${pct(d.p75) - pct(d.p25)}%` }} />
-              <div className="dist-tick" style={{ left: `${pct(d.median)}%` }} title={`Médiane ${eur(d.median)}`} />
-              {[
-                { v: d.min, l: "Min", mid: false },
-                { v: d.p25, l: "P25", mid: true },
-                { v: d.median, l: "Méd.", mid: false },
-                { v: d.p75, l: "P75", mid: true },
-                { v: d.max, l: "Max", mid: false },
-              ].map((t, i, arr) => {
-                // Extrêmes ancrés aux bords (Min à gauche, Max à droite) pour
-                // qu'ils ne débordent pas de la carte ; intermédiaires centrés.
-                const isFirst = i === 0;
-                const isLast = i === arr.length - 1;
-                const transform = isFirst ? "translateX(0)" : isLast ? "translateX(-100%)" : "translateX(-50%)";
-                const textAlign = isFirst ? "left" : isLast ? "right" : "center";
-                return (
-                  <div key={i} className={`dist-lab${t.mid ? " dist-lab-mid" : ""}`} style={{ left: `${pct(t.v)}%`, transform, textAlign }}>
-                    <span className="dist-lab-v">{eur(t.v)}</span>
-                    <span className="dist-lab-k">{t.l}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="ds-hint" style={{ marginTop: 14 }}>
-              <strong>P25</strong> et <strong>P75</strong> = 1ᵉʳ et 3ᵉ quartiles : un quart des comparables sont sous P25,
-              trois quarts sous P75. L'écart P25–P75 (la zone foncée) regroupe la <strong>moitié centrale</strong> des
-              biens : plus il est resserré, plus le marché local est homogène.
+            <DistributionChart values={mv} q={d} signed={est.signedRef?.signed ?? null} estimate={e} fmt={eur} />
+            <p className="ds-hint" style={{ marginTop: 6 }}>
+              Courbe = densité des €/m² <strong>affichés</strong> (lissée), chaque tick sous l'axe = un comparable réel.
+              Zone verte = <strong>moitié centrale</strong> (P25→P75). Trait plein = médiane affichée ; trait pointillé =
+              prix <strong>signé</strong> de l'Observatoire. Plus la courbe est resserrée, plus le marché local est homogène.
             </p>
           </div>
 

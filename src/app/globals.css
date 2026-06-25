@@ -650,6 +650,13 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
   line-height: 1.45;
 }
 .ds-scope *, .ds-scope *::before, .ds-scope *::after { box-sizing: border-box; }
+/* Variante plus lisible (page d'accueil) : échelle typo remontée d'un cran. */
+.ds-scope--lg {
+  --ds-fs-xs: 12px; --ds-fs-sm: 14px; --ds-fs-base: 15px; --ds-fs-md: 17px;
+  --ds-fs-lg: 20px; --ds-fs-xl: 24px; --ds-fs-2xl: 31px;
+  --ds-ctrl-h: 38px;
+  font-size: var(--ds-fs-base);
+}
 
 /* Titres & micro-labels */
 .ds-h1 { font-size: var(--ds-fs-2xl); font-weight: 800; letter-spacing: -0.02em; margin: 0; }
