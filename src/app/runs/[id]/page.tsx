@@ -2,6 +2,7 @@
 import { Fragment, useEffect, useState } from "react";
 import PhotoStrip from "@/components/PhotoStrip";
 import { extractKeywords, extractSurfaces } from "@/lib/keywords";
+import { exportPdf, exportExcel, type ExportComparable, type ExportAnalysis } from "@/lib/exportRun";
 
 type Comparable = {
   id: string;
@@ -223,6 +224,9 @@ export default function RunPage({ params }: { params: { id: string } }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [estimate, setEstimate] = useState<Estimate | null>(null);
+  const [expBusy, setExpBusy] = useState<"" | "pdf" | "xlsx">("");
+  const [expPhotos, setExpPhotos] = useState(false);
+  const [expDetails, setExpDetails] = useState(false);
 
   useEffect(() => {
     let stop = false;
@@ -271,6 +275,54 @@ export default function RunPage({ params }: { params: { id: string } }) {
   const results = run?.results ?? [];
   const included = results.filter((r) => !excluded.has(r.id));
 
+  async function doExport(kind: "pdf" | "xlsx") {
+    setExpBusy(kind);
+    try {
+      const comps: ExportComparable[] = included.map((r) => ({
+        title: displayTitle(r),
+        commune: r.commune || "",
+        url: r.url,
+        price: r.price,
+        surface: r.surface,
+        priceM2: r.priceM2,
+        rooms: r.rooms,
+        cpe: r.cpe,
+        source: r.source,
+        etat: r.etat,
+        marketStatus: r.marketStatus,
+        buildYear: r.buildYear,
+        photos: r.photos,
+        description: r.description,
+      }));
+      const sv = included.map((c) => c.surface).filter((v): v is number => typeof v === "number" && v > 0);
+      const pv = included.map((c) => c.price).filter((v): v is number => typeof v === "number" && v > 0);
+      const mv = included.map((c) => c.priceM2).filter((v): v is number => typeof v === "number" && v > 0);
+      const analysis: ExportAnalysis = {
+        commune: estimate?.commune ?? null,
+        nComps: included.length,
+        enough: !!estimate?.enough,
+        displayed: estimate?.displayed,
+        signedRef: estimate?.signedRef ?? null,
+        decotePct: estimate?.decotePct,
+        decoteSource: estimate?.decoteSource,
+        estimate: estimate?.estimate,
+        confidence: estimate?.confidence,
+        confLabel: estimate?.confLabel,
+        avgSurface: avg(sv),
+        avgPrice: avg(pv),
+        avgM2: avg(mv),
+      };
+      const base = `vesper-${(run?.config_name || "recherche")}-${params.id}`;
+      if (kind === "pdf") await exportPdf(comps, analysis, base, { photos: expPhotos, details: expDetails });
+      else await exportExcel(comps, analysis, base);
+    } catch (e) {
+      console.error("[export]", e);
+      alert("Export impossible : " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setExpBusy("");
+    }
+  }
+
   return (
     <div className="wrap">
       <div className="topbar">
@@ -292,6 +344,25 @@ export default function RunPage({ params }: { params: { id: string } }) {
 
       {run?.status === "done" && (
         <>
+          <div className="card" style={{ marginBottom: 16, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div className="row" style={{ alignItems: "center", gap: 16, flex: 1 }}>
+              <strong style={{ fontSize: "0.9rem" }}>Exporter</strong>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, margin: 0, fontWeight: 500, color: "var(--ink)", cursor: "pointer" }}>
+                <input type="checkbox" checked={expPhotos} onChange={(e) => setExpPhotos(e.target.checked)} /> Photos
+              </label>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, margin: 0, fontWeight: 500, color: "var(--ink)", cursor: "pointer" }}>
+                <input type="checkbox" checked={expDetails} onChange={(e) => setExpDetails(e.target.checked)} /> Détails (description)
+              </label>
+            </div>
+            <div className="row" style={{ flex: "0 0 auto", gap: 8 }}>
+              <button className="btn ghost" onClick={() => doExport("xlsx")} disabled={!!expBusy}>
+                {expBusy === "xlsx" ? "..." : "⬇ Excel"}
+              </button>
+              <button className="btn clay" onClick={() => doExport("pdf")} disabled={!!expBusy}>
+                {expBusy === "pdf" ? "..." : "⬇ PDF"}
+              </button>
+            </div>
+          </div>
           {(() => {
             // Répartition par source (dérivée des résultats, source de vérité fiable).
             const athomeN = results.filter((r) => r.source === "athome" || r.source === "both").length;
