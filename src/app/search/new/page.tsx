@@ -21,7 +21,7 @@ export default function NewSearch() {
   const [propertyType, setPropertyType] = useState("apartment");
   // Construction : existant uniquement (défaut) | neuf uniquement | les deux.
   const [construction, setConstruction] = useState<"existant" | "neuf" | "both">("existant");
-  const [locCodes, setLocCodes] = useState<string[]>(["L9-luxembourg"]);
+  const [locCodes, setLocCodes] = useState<string[]>([]);
   const [surfaceMin, setSurfaceMin] = useState("");
   const [surfaceMax, setSurfaceMax] = useState("");
   const [priceMin, setPriceMin] = useState("");

@@ -85,16 +85,32 @@ export async function GET(req: NextRequest) {
     const p75 = Math.round(percentile(vals, 0.75)!);
     const min = vals[0], max = vals[vals.length - 1];
 
-    // Décote affiché→signé : si on a le signé commune, on la mesure directement ;
-    // sinon on prend la décote globale (mesurée ou fallback prudent).
+    // Décote affiché→signé : si on a le signé commune, on la mesure directement
+    // (1 − signé/médiane affichée). MAIS sur une petite commune la réf signée
+    // (moyenne 12 mois, peu de ventes) peut être ~égale, voire au-dessus, de la
+    // médiane des annonces du run (sous-ensemble étroit) → décote ≈ 0 %, non
+    // montrable (CLAUDE.md §0/§10). Garde-fou : si la décote commune mesurée est
+    // plus FAIBLE que la décote globale (marché-wide, plus stable), on retient la
+    // globale comme plancher et on le signale.
     let decotePct: number;
     let decoteSource: "commune" | "global";
+    let decoteReason: string | null = null;
     if (signedRow && signedRow.signed > 0) {
-      decotePct = Math.max(0, Math.min(0.25, 1 - signedRow.signed / displayedMedian));
-      decoteSource = "commune";
+      const measured = 1 - signedRow.signed / displayedMedian;
+      if (measured >= decote.decote) {
+        decotePct = Math.min(0.25, measured);
+        decoteSource = "commune";
+      } else {
+        // Réf signée commune trop proche des annonces (petite commune / peu de
+        // ventes) → on plafonne par le bas avec la décote globale.
+        decotePct = decote.decote;
+        decoteSource = "global";
+        decoteReason = "réf. signée de la commune trop proche des annonces (échantillon réduit) ; décote globale appliquée";
+      }
     } else {
       decotePct = decote.decote;
       decoteSource = "global";
+      decoteReason = decote.reason ?? null;
     }
     const factor = 1 - decotePct;
     const signedMedian = Math.round(displayedMedian * factor);
@@ -129,7 +145,7 @@ export async function GET(req: NextRequest) {
       signedRef: signedRow, // { signed, period } notarial de la commune (ou null)
       decotePct: Math.round(decotePct * 1000) / 10,
       decoteSource,
-      decoteReason: decoteSource === "global" ? decote.reason ?? null : null,
+      decoteReason,
       estimate: { low: signedLow, median: signedMedian, high: signedHigh },
       confidence,
       confLabel,
