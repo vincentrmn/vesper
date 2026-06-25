@@ -75,6 +75,10 @@ export type Criteria = {
    *  `neuf` n'est pas exposé ici comme filtre d'état : le neuf est gouverné par
    *  includeNew/newOnly (cohérence avec atHome). */
   conditions?: ("a_renover" | "habitable" | "renove")[];
+  /** Bande énergie Immotop (filtre SERVEUR `classeEnergetica`, cumulatif « cette
+   *  qualité et mieux »). null/absent => pas de filtre. Indicatif : Immotop ne
+   *  publie pas la classe C-F exacte par bien, seulement ce filtre par bande. */
+  immotopEnergy?: "excellente" | "moyenne" | "basse" | null;
 };
 
 export type ConfigRow = {

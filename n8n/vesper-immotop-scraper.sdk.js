@@ -148,6 +148,8 @@ for (const commune of communes) {
     TIPO.forEach((tp, ti) => qp.push('idTipologia%5B' + ti + '%5D=' + tp));
     add('superficieMinima', c.surfaceMin); add('superficieMassima', c.surfaceMax);
     add('prezzoMinimo', c.priceMin); add('prezzoMassimo', c.priceMax);
+    // Bande energie (filtre SERVEUR cumulatif) : 1=Excellente, 5=Moyenne, 3=Basse.
+    add('classeEnergetica', c.energyId);
     add('criterio', 'dataModifica'); add('ordine', 'desc'); add('pag', pag);
     const url = 'https://www.immotop.lu/api-next/search-list/listings/?' + qp.join('&');
     let resp;

@@ -116,6 +116,9 @@ export async function triggerRun(
     // client sur `ga4Condition` (présent dans la réponse liste). On lui passe donc
     // directement les états demandés. (Énergie/CPE : non exposés par immotop → pas
     // de filtre énergie côté immotop, cf. étude api-next.)
+    // Bande énergie Immotop -> id du param serveur classeEnergetica (cumulatif).
+    // Cf. étude api-next : 1=Excellente, 5=Moyenne, 3=Basse (« et mieux »).
+    const ENERGY_ID: Record<string, number> = { excellente: 1, moyenne: 5, basse: 3 };
     const imCriteria = {
       propertyType: criteria.propertyType,
       includeNew: criteria.includeNew,
@@ -126,6 +129,7 @@ export async function triggerRun(
       quartierSlugs,
       communeNames,
       conditions: Array.isArray(criteria.conditions) ? criteria.conditions : [],
+      energyId: criteria.immotopEnergy ? ENERGY_ID[criteria.immotopEnergy] : undefined,
       maxPages: 30,
     };
     fetch(immotopWebhook!, {

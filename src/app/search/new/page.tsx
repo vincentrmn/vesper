@@ -34,6 +34,8 @@ export default function NewSearch() {
   const [includeNoCpe, setIncludeNoCpe] = useState(false);
   const [sources, setSources] = useState<("athome" | "immotop")[]>(["athome", "immotop"]);
   const [conditions, setConditions] = useState<("a_renover" | "habitable" | "renove")[]>([]);
+  // Bande énergie Immotop (filtre serveur classeEnergetica). "" = toutes.
+  const [immotopEnergy, setImmotopEnergy] = useState<"" | "excellente" | "moyenne" | "basse">("");
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -71,6 +73,7 @@ export default function NewSearch() {
         includeNoCpe: allCpe ? false : includeNoCpe,
         sources,
         conditions: hasImmotop ? conditions : [],
+        immotopEnergy: hasImmotop && immotopEnergy ? immotopEnergy : null,
       },
     };
   }
@@ -126,6 +129,7 @@ export default function NewSearch() {
         </div>
       </div>
 
+      <div className="ds-section"><span className="ds-h2">La recherche</span><span className="ds-rule" /></div>
       <div className="ds-card"><div className="ds-card__body">
         <div className="ds-field">
           <span className="ds-label">Nom de la recherche</span>
@@ -152,6 +156,7 @@ export default function NewSearch() {
 
       {sources.length > 0 && (
         <>
+          <div className="ds-section"><span className="ds-h2">Le bien &amp; les critères</span><span className="ds-rule" /></div>
           <div className="ds-card" style={{ marginTop: 16 }}><div className="ds-card__body">
             <div className="ds-grid">
               <div className="ds-field">
@@ -241,9 +246,20 @@ export default function NewSearch() {
                   État de rénovation, propre à Immotop (atHome ne le fournit pas). Vide = tous les états.
                   Les biens dont Immotop ne renseigne pas l'état sont écartés si tu filtres.
                 </p>
-                <p className="ds-hint">
-                  ℹ️ Immotop ne publie <strong>ni CPE ni classe énergétique</strong> dans ses résultats : il n'y a pas de filtre énergie pour cette source (côté atHome, oui).
-                </p>
+
+                <div style={{ marginTop: 16 }}>
+                  <span className="ds-label" style={{ display: "block", marginBottom: 8 }}>Énergie · Immotop</span>
+                  <div className="ds-chips">
+                    {([["", "Toutes"], ["excellente", "Excellente"], ["moyenne", "Moyenne"], ["basse", "Basse"]] as const).map(([k, lbl]) => (
+                      <span key={k || "all"} className="ds-chip" data-on={immotopEnergy === k} onClick={() => setImmotopEnergy(k)}>{lbl}</span>
+                    ))}
+                  </div>
+                  <p className="ds-hint">
+                    Filtre par <strong>bande</strong> côté Immotop (« cette qualité <em>et mieux</em> »), pas une classe
+                    C-F exacte — Immotop ne publie pas le CPE par bien, donc il reste « — » dans le tableau.
+                    Indicatif : à utiliser pour dégrossir, pas comme un CPE ferme.
+                  </p>
+                </div>
               </div>
             )}
           </div></div>
