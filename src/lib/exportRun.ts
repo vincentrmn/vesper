@@ -41,7 +41,7 @@ export type ExportAnalysis = {
 const eur = (n?: number | null) =>
   n == null ? "—" : Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " €";
 const SRC_LABEL: Record<string, string> = { athome: "atHome", immotop: "Immotop", both: "atHome+Immotop" };
-const ETAT_LABEL: Record<string, string> = { a_renover: "À rénover", habitable: "Habitable", renove: "Rénové" };
+const ETAT_LABEL: Record<string, string> = { a_renover: "À rénover", habitable: "Habitable", renove: "Rénové", neuf: "Neuf" };
 const safeName = (s: string) => s.replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "") || "vesper";
 const proxied = (url: string) => `/api/imgproxy?url=${encodeURIComponent(url)}`;
 

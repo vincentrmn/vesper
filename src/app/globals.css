@@ -161,6 +161,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 .etat-badge.a_renover { background: #ececec; color: #555; }
 .etat-badge.habitable { background: #e6effb; color: #1f5fae; }
 .etat-badge.renove { background: #fdeccf; color: #9a5b00; }   /* Rénové = orange */
+.etat-badge.neuf { background: var(--green-soft); color: var(--green-ink); }   /* Neuf = vert (distinct de Rénové) */
 .bien-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.25; max-height: 2.5em; font-weight: 600; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; align-items: center; }
 

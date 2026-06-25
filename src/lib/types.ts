@@ -20,8 +20,10 @@ export type Listing = {
   description?: string | null;
   /** Année de construction (atHome `buildingYear` si renseignée). */
   buildYear?: number | null;
-  /** État de rénovation (immotop : ga4Condition ; atHome : absent). */
-  etat?: "a_renover" | "habitable" | "renove" | null;
+  /** État de rénovation (immotop : ga4Condition ; atHome : absent).
+   *  `neuf` = programme neuf / en construction (« Nuovo / In costruzione ») —
+   *  distinct de `renove` : un neuf n'est PAS un bien rénové (cf. roadmap immotop). */
+  etat?: "a_renover" | "habitable" | "renove" | "neuf" | null;
   /** Statut marché : 'sold' = vendu / sous compromis (atHome isSoldProperty). */
   marketStatus?: "active" | "sold";
 };
@@ -69,7 +71,9 @@ export type Criteria = {
   includeNoCpe?: boolean;
   /** Sources de scraping. Absent/vide => ['athome']. 'immotop' tenté si webhook configuré. */
   sources?: ("athome" | "immotop")[];
-  /** Filtre d'état de rénovation (immotop uniquement, via ga4Condition). Vide => pas de filtre. */
+  /** Filtre d'état de rénovation (immotop uniquement, via ga4Condition). Vide => pas de filtre.
+   *  `neuf` n'est pas exposé ici comme filtre d'état : le neuf est gouverné par
+   *  includeNew/newOnly (cohérence avec atHome). */
   conditions?: ("a_renover" | "habitable" | "renove")[];
 };
 

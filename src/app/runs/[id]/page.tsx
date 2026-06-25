@@ -18,7 +18,7 @@ type Comparable = {
   priceDelta?: number | null;
   source?: "athome" | "immotop" | "both";
   altUrl?: string;
-  etat?: "a_renover" | "habitable" | "renove" | null;
+  etat?: "a_renover" | "habitable" | "renove" | "neuf" | null;
   marketStatus?: "active" | "sold";
   photos?: string[];
   description?: string | null;
@@ -49,7 +49,7 @@ type Run = {
 const eur = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " €";
 const plur = (n: number) => (n > 1 ? "s" : "");
 
-const ETAT_LABEL: Record<string, string> = { a_renover: "À rénover", habitable: "Habitable", renove: "Rénové" };
+const ETAT_LABEL: Record<string, string> = { a_renover: "À rénover", habitable: "Habitable", renove: "Rénové", neuf: "Neuf" };
 
 // Libellé d'affichage du bien : nom de l'annonce si présent, sinon un libellé
 // reconstruit (surface · chambres) — jamais l'id brut.
@@ -550,7 +550,9 @@ export default function RunPage({ params }: { params: { id: string } }) {
                               )}
                               {sold && <span className="tag sold" title="Vendu / sous compromis">Vendu</span>}
                               <EtatBadge etat={r.etat} />
-                              {kws.some((k) => k.label === "Neuf") && <span className="tag neuf">Neuf</span>}
+                              {/* Tag « Neuf » (titre/description) : masqué si l'état immotop dit déjà neuf
+                                  (évite le double-badge Rénové+Neuf corrigé en amont). */}
+                              {r.etat !== "neuf" && kws.some((k) => k.label === "Neuf") && <span className="tag neuf">Neuf</span>}
                             </div>
                           </td>
                           <td className="num" data-label="Prix">
