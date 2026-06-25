@@ -206,63 +206,68 @@ export default function NewSearch() {
             </p>
           </div></div>
 
-          <div className="ds-section"><span className="ds-h2">Énergie &amp; état</span><span className="ds-rule" /></div>
+          {/* ── Énergie (atHome + Immotop) ─────────────────────────────────── */}
+          <div className="ds-section"><span className="ds-h2">Énergie</span><span className="ds-rule" /></div>
           <div className="ds-card"><div className="ds-card__body">
             {hasAthome && (
-              <div>
-                <span className="ds-label" style={{ display: "block", marginBottom: 8 }}>Classes énergétiques · atHome</span>
+              <div style={{ marginBottom: hasImmotop ? 20 : 0, paddingBottom: hasImmotop ? 18 : 0, borderBottom: hasImmotop ? "1px solid var(--ds-line)" : "none" }}>
+                <span className="ds-label" style={{ display: "block", marginBottom: 8 }}>Classe CPE · atHome <span className="ds-muted" style={{ fontWeight: 400 }}>(A → I, note exacte par bien)</span></span>
                 <div className="zone-picker__toggle-row" style={{ borderBottom: "none", paddingBottom: 0, marginBottom: 0 }}>
-                  <Toggle checked={allCpe} onChange={setAllCpe} />
-                  <span className="zone-picker__toggle-label">Toutes les notes CPE</span>
+                  <Toggle checked={!allCpe} onChange={(v) => setAllCpe(!v)} />
+                  <span className="zone-picker__toggle-label">Filtrer par note CPE</span>
                 </div>
-                {!allCpe && (
+                {allCpe ? (
+                  <p className="ds-hint">Désactivé : toutes les annonces, y compris celles sans note de CPE.</p>
+                ) : (
                   <>
                     <div className="ds-chips" style={{ marginTop: 12 }}>
                       {CPE.map((c) => (
                         <span key={c} className="ds-chip" data-on={cpe.includes(c)} onClick={() => toggleCpe(c)}>{c}</span>
                       ))}
                     </div>
-                    <div className="zone-picker__toggle-row" style={{ marginTop: 14, borderBottom: "none", paddingBottom: 0, marginBottom: 0 }}>
-                      <Toggle checked={includeNoCpe} onChange={setIncludeNoCpe} />
-                      <span className="zone-picker__toggle-label">Inclure les biens sans note de CPE</span>
-                    </div>
-                    <p className="ds-hint">
-                      Garde aussi les annonces dont le CPE est « en cours d'élaboration ».
-                    </p>
+                    <label className="exp-opt" style={{ marginTop: 12 }}>
+                      <input type="checkbox" checked={includeNoCpe} onChange={(e) => setIncludeNoCpe(e.target.checked)} />
+                      Garder aussi les biens <strong>sans note</strong> de CPE (note « en cours »)
+                    </label>
                   </>
                 )}
               </div>
             )}
 
             {hasImmotop && (
-              <div style={{ marginTop: hasAthome ? 22 : 0, paddingTop: hasAthome ? 18 : 0, borderTop: hasAthome ? "1px solid var(--ds-line)" : "none" }}>
-                <span className="ds-label" style={{ display: "block", marginBottom: 8 }}>État du bien · Immotop</span>
+              <div>
+                <span className="ds-label" style={{ display: "block", marginBottom: 8 }}>Performance · Immotop <span className="ds-muted" style={{ fontWeight: 400 }}>(par bande, indicatif)</span></span>
+                <div className="ds-chips">
+                  {([["", "Toutes"], ["excellente", "Excellente"], ["moyenne", "Moyenne"], ["basse", "Basse"]] as const).map(([k, lbl]) => (
+                    <span key={k || "all"} className="ds-chip" data-on={immotopEnergy === k} onClick={() => setImmotopEnergy(k)}>{lbl}</span>
+                  ))}
+                </div>
+                <p className="ds-hint">
+                  Bandes « et mieux » : <strong>Excellente</strong> ≈ A–C · <strong>Moyenne</strong> ≈ D–F · <strong>Basse</strong> ≈ G–I.
+                  Immotop ne donne pas la note exacte par bien (reste « · » dans le tableau).
+                </p>
+              </div>
+            )}
+          </div></div>
+
+          {/* ── État (Immotop) ─────────────────────────────────────────────── */}
+          {hasImmotop && (
+            <>
+              <div className="ds-section"><span className="ds-h2">État du bien</span><span className="ds-rule" /></div>
+              <div className="ds-card"><div className="ds-card__body">
+                <span className="ds-label" style={{ display: "block", marginBottom: 8 }}>État de rénovation · Immotop</span>
                 <div className="ds-chips">
                   {([["a_renover", "À rénover"], ["habitable", "Habitable"], ["renove", "Rénové"]] as const).map(([k, lbl]) => (
                     <span key={k} className="ds-chip" data-on={conditions.includes(k)} onClick={() => toggleCondition(k)}>{lbl}</span>
                   ))}
                 </div>
                 <p className="ds-hint">
-                  État de rénovation, propre à Immotop (atHome ne le fournit pas). Vide = tous les états.
-                  Les biens dont Immotop ne renseigne pas l'état sont écartés si tu filtres.
+                  Propre à Immotop (atHome ne le fournit pas). Vide = tous les états ;
+                  les biens dont Immotop ne renseigne pas l'état sont écartés si tu filtres.
                 </p>
-
-                <div style={{ marginTop: 16 }}>
-                  <span className="ds-label" style={{ display: "block", marginBottom: 8 }}>Énergie · Immotop</span>
-                  <div className="ds-chips">
-                    {([["", "Toutes"], ["excellente", "Excellente"], ["moyenne", "Moyenne"], ["basse", "Basse"]] as const).map(([k, lbl]) => (
-                      <span key={k || "all"} className="ds-chip" data-on={immotopEnergy === k} onClick={() => setImmotopEnergy(k)}>{lbl}</span>
-                    ))}
-                  </div>
-                  <p className="ds-hint">
-                    Filtre par <strong>bande</strong> côté Immotop (« cette qualité <em>et mieux</em> »), pas une classe
-                    C-F exacte : Immotop ne publie pas le CPE par bien, donc il reste « · » dans le tableau.
-                    Indicatif : à utiliser pour dégrossir, pas comme un CPE ferme.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div></div>
+              </div></div>
+            </>
+          )}
         </>
       )}
 
