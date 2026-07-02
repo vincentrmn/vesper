@@ -8,6 +8,7 @@ type Props = {
 };
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const ZONES_CACHE_KEY = "vesper_zones_v1";
 
 type FlatZone = {
   locCode: string;
@@ -31,14 +32,30 @@ export default function ZonePicker({ value, onChange }: Props) {
 
   useEffect(() => {
     let cancelled = false;
+    // 1) Cache local instantané (les zones ne changent quasi jamais) → le
+    //    formulaire s'ouvre sans attendre le réseau.
+    try {
+      const cached = localStorage.getItem(ZONES_CACHE_KEY);
+      if (cached) {
+        setTree(JSON.parse(cached));
+        setLoading(false);
+      }
+    } catch {}
+    // 2) Rafraîchissement en arrière-plan (mise en cache navigateur/edge côté route).
     (async () => {
       try {
-        const res = await fetch("/api/zones", { cache: "no-store" });
+        const res = await fetch("/api/zones");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        if (!cancelled) setTree(json.zones || []);
+        if (!cancelled) {
+          setTree(json.zones || []);
+          try { localStorage.setItem(ZONES_CACHE_KEY, JSON.stringify(json.zones || [])); } catch {}
+        }
       } catch (e: unknown) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+        // Échec réseau : on ne montre l'erreur que si on n'a aucun cache local.
+        let hasCache = false;
+        try { hasCache = !!localStorage.getItem(ZONES_CACHE_KEY); } catch {}
+        if (!cancelled && !hasCache) setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (!cancelled) setLoading(false);
       }

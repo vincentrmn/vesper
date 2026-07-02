@@ -7,7 +7,9 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     await ensureSchema();
-    await reapStaleRuns(); // clôture les runs « running » sans réponse n8n (>45 min)
+    // Clôture des runs figés : hors du chemin critique (fire-and-forget) pour ne
+    // pas ralentir l'affichage de l'accueil.
+    void reapStaleRuns().catch(() => {});
     const id = req.nextUrl.searchParams.get("id");
     if (id) {
       const { rows } = await pool.query(`SELECT * FROM runs WHERE id = $1`, [id]);
